@@ -10,6 +10,8 @@
 
 A basic tree view implementation for [cursive](https://crates.io/crates/cursive).
 
+![Picture of File View Example](https://cloud.githubusercontent.com/assets/124674/25919091/ddd9ac46-35cd-11e7-976a-e461e9b153f0.png)
+
 
 ## Known issues TBF before initial release
 
