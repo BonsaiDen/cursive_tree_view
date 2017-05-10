@@ -11,6 +11,13 @@
 A basic tree view implementation for [cursive](https://crates.io/crates/cursive).
 
 
+## Known issues TBF before initial release
+
+- [  ] Method for removing only the children of a item is missing
+- [  ] `usize` underflow when collapsing an item contained by a already collapsed parent
+- [  ] `Placement::Child` must be split up into `Placement::FirstChild` and `Placement::LastChild` for more precise use
+
+
 ## Usage
 
 Add this to your `Cargo.toml`:
