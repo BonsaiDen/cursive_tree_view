@@ -1,15 +1,17 @@
 // STD Dependencies -----------------------------------------------------------
 use std::cmp;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 
+// TODO add methods to hide implementation
 #[derive(Debug)]
-pub struct TreeNode<T: Display> {
+pub struct TreeNode<T: Display + Debug> {
     pub value: T,
-    pub collapsed: bool,
+    pub is_collapsed: bool,
     pub level: usize,
     pub children: usize,
     pub height: usize,
+    pub is_container: bool,
     collapsed_height: Option<usize>
 }
 
@@ -29,12 +31,12 @@ pub enum Placement {
 }
 
 #[derive(Debug)]
-pub struct TreeList<T: Display> {
+pub struct TreeList<T: Display + Debug> {
     items: Vec<TreeNode<T>>,
     height: usize
 }
 
-impl<T: Display> TreeList<T> {
+impl<T: Display + Debug> TreeList<T> {
 
     pub fn new() -> Self {
         Self {
@@ -77,7 +79,201 @@ impl<T: Display> TreeList<T> {
         self.height = 0;
     }
 
-    pub fn insert(&mut self, placement: Placement, index: usize, value: T) -> usize {
+    pub fn insert_item(&mut self, placement: Placement, index: usize, value: T) -> Option<usize> {
+        self.insert(placement, index, value, false)
+    }
+
+    pub fn insert_container_item(&mut self, placement: Placement, index: usize, value: T) -> Option<usize> {
+        self.insert(placement, index, value, true)
+    }
+
+    pub fn remove(&mut self, index: usize) -> Option<T> {
+
+        if index < self.len() {
+
+            // Uncollapse to avoid additional height calculation
+            self.set_collapsed(index, false);
+
+            // Reduce height and children of all parents
+            self.traverse_up(index, 0, |item| {
+                item.children -= 1;
+                item.height -= 1;
+            });
+
+            // Remove item
+            let removed_item = self.items.remove(index);
+
+            // Reduce level of all children
+            if removed_item.children > 0 {
+                self.traverse_down(index, true, |item| {
+                    item.level -= 1;
+                });
+            }
+
+            // Reduce tree height
+            self.height -= 1;
+
+            Some(removed_item.value)
+
+        } else {
+            None
+        }
+
+    }
+
+    // TODO add method for removing only an items children
+
+    pub fn remove_with_children(&mut self, index: usize) -> Option<Vec<T>> {
+
+        if index < self.len() {
+
+            // Uncollapse to avoid additional height calculation
+            self.set_collapsed(index, false);
+
+            let (item_height, item_children) = {
+                let item = &self.items[index];
+                (item.height, item.children)
+            };
+
+            // Reduce height and children of all parents
+            self.traverse_up(index, 0, |item| {
+                item.children -= item_children + 1;
+                item.height -= item_height;
+            });
+
+            // Remove item
+            let item = self.items.remove(index);
+            let child_count = item.children;
+
+            // Reduce tree height
+            self.height -= item.height;
+
+            // Remove children
+            let mut removed_items = vec![item.value];
+            if child_count > 0 {
+                removed_items.append(&mut self.items.drain(index..index + child_count).map(|item| {
+                    item.value
+
+                }).collect())
+            };
+
+            Some(removed_items)
+
+        } else {
+            None
+        }
+
+    }
+
+    // TODO rename and cleanup the methods below
+    pub fn is_container_item(&self, index: usize) -> bool {
+        self.items.get(index).map(|item| item.is_container).unwrap_or(false)
+    }
+
+    pub fn get_children(&self, index: usize) -> usize {
+        self.items.get(index).map(|item| item.children).unwrap_or(0)
+    }
+
+    pub fn get_collapsed(&self, index: usize) -> bool {
+        self.items.get(index).map(|item| item.is_collapsed).unwrap_or(false)
+    }
+
+    pub fn set_collapsed(&mut self, index: usize, collapsed: bool) {
+        if index < self.len() {
+
+            let offset = {
+                let item = &mut self.items[index];
+                if item.is_collapsed != collapsed {
+
+                    item.is_collapsed = collapsed;
+
+                    // Remove the height if we are collpasing
+                    // This way already collapsed children are not counted in
+                    // We also store the height for later unfolding.
+                    if collapsed {
+                        item.collapsed_height = Some(item.height);
+                        item.height - 1
+
+                    } else {
+                        item.collapsed_height.take().unwrap() - 1
+                    }
+
+                } else {
+                    0
+                }
+            };
+
+            // TODO fix underflow when collapsing a child of a already collapsed
+            // parent
+            self.traverse_up(index, 1, |item| {
+                if collapsed {
+                    item.height -= offset;
+
+                } else {
+                    item.height += offset;
+                }
+            });
+
+            if collapsed {
+                self.height -= offset;
+
+            } else {
+                self.height += offset;
+            }
+
+        }
+    }
+
+    pub fn row_to_item_index(&self, row: usize) -> usize {
+
+        let mut i = 0;
+        let mut item_index = row;
+
+        while i < self.items.len() {
+
+            if item_index == i {
+                return i;
+
+            } else if self.get_collapsed(i) {
+                let children = self.get_children(i);
+                i += children;
+                item_index += children;
+            }
+
+            i += 1;
+
+        }
+
+        self.len()
+
+    }
+
+    pub fn item_index_to_row(&self, index: usize) -> usize {
+
+        let mut i = 0;
+        let mut row = index;
+
+        while i < index {
+
+            if self.get_collapsed(i) {
+                let children = self.get_children(i);
+                i += children;
+                row -= children;
+            }
+
+            i += 1;
+
+        }
+
+        row
+
+    }
+
+}
+
+impl<T: Display + Debug> TreeList<T> {
+
+    fn insert(&mut self, placement: Placement, index: usize, value: T, is_container: bool) -> Option<usize> {
 
         // Limit index to the maximum index of the items vec
         let index = cmp::min(
@@ -142,11 +338,28 @@ impl<T: Display> TreeList<T> {
             }
         };
 
+        let mut inside_collapsed = false;
         if let Some(parent_index) = parent_index {
             self.traverse_up(parent_index, 1, |item| {
                 if item.level < level {
+
+                    // Automatically convert the item into a container
+                    item.is_container = true;
                     item.children += 1;
-                    item.height += 1;
+
+                    // In case the parent is collapsed we increment the stored
+                    // collapsed height instead of the actual one and exit early
+                    // to avoid messing up any parents further up the in the tree
+                    if !inside_collapsed {
+                        if item.is_collapsed {
+                            inside_collapsed = true;
+                            item.collapsed_height = Some(item.collapsed_height.unwrap() + 1);
+
+                        } else {
+                            item.height += 1;
+                        }
+                    }
+
                 }
             });
         }
@@ -161,48 +374,30 @@ impl<T: Display> TreeList<T> {
             0
         };
 
+        let initially_collapsed = is_container && children == 0;
         self.items.insert(item_index, TreeNode {
             value: value,
-            collapsed: false,
+            is_collapsed: initially_collapsed,
             level: level,
             children: children,
             height: 1 + children,
-            collapsed_height: None
+            is_container: is_container,
+            collapsed_height: if initially_collapsed {
+                Some(1)
+
+            } else {
+                None
+            }
         });
 
-        self.height += 1;
+        // Only increment the tree height if the item was not inserted within a
+        // already collapsed parent
+        if !inside_collapsed {
+            self.height += 1;
 
-        item_index
-
-    }
-
-    pub fn remove(&mut self, index: usize) -> Option<T> {
-
-        if index < self.len() {
-
-            // Uncollapse to avoid additional height calculation
-            self.set_collapsed(index, false);
-
-            // Reduce height and children of all parents
-            self.traverse_up(index, 0, |item| {
-                item.children -= 1;
-                item.height -= 1;
-            });
-
-            // Remove item
-            let removed_item = self.items.remove(index);
-
-            // Reduce level of all children
-            if removed_item.children > 0 {
-                self.traverse_down(index, true, |item| {
-                    item.level -= 1;
-                });
-            }
-
-            // Reduce tree height
-            self.height -= 1;
-
-            Some(removed_item.value)
+            // We only return the visual row index in case the inserted item is
+            // visible
+            Some(self.item_index_to_row(item_index))
 
         } else {
             None
@@ -210,167 +405,7 @@ impl<T: Display> TreeList<T> {
 
     }
 
-    pub fn remove_with_children(&mut self, index: usize) -> Option<Vec<T>> {
-
-        if index < self.len() {
-
-            // Uncollapse to avoid additional height calculation
-            self.set_collapsed(index, false);
-
-            let (item_height, item_children) = {
-                let item = &self.items[index];
-                (item.height, item.children)
-            };
-
-            // Reduce height and children of all parents
-            self.traverse_up(index, 0, |item| {
-                item.children -= item_children + 1;
-                item.height -= item_height;
-            });
-
-            // Remove item
-            let item = self.items.remove(index);
-            let child_count = item.children;
-
-            // Reduce tree height
-            self.height -= item.height;
-
-            // Remove children
-            let mut removed_items = vec![item.value];
-            if child_count > 0 {
-                removed_items.append(&mut self.items.drain(index..index + child_count).map(|item| {
-                    item.value
-
-                }).collect())
-            };
-
-            Some(removed_items)
-
-        } else {
-            None
-        }
-
-    }
-
-    pub fn get_children(&self, index: usize) -> usize {
-        self.items.get(index).map(|item| item.children).unwrap_or(0)
-    }
-
-    pub fn get_collapsed(&self, index: usize) -> bool {
-        self.items.get(index).map(|item| item.collapsed).unwrap_or(false)
-    }
-
-    pub fn set_collapsed(&mut self, index: usize, collapsed: bool) {
-        if index < self.len() {
-
-            let offset = {
-                let item = &mut self.items[index];
-                if item.collapsed != collapsed {
-
-                    item.collapsed = collapsed;
-
-                    // Remove the height if we are collpasing
-                    // This way already collapsed children are not counted in
-                    // We also store the height for later unfolding.
-                    if collapsed {
-                        item.collapsed_height = Some(item.height);
-                        item.height - 1
-
-                    } else {
-                        item.collapsed_height.take().unwrap() - 1
-                    }
-
-                } else {
-                    0
-                }
-            };
-
-            self.traverse_up(index, 1, |item| {
-                if collapsed {
-                    item.height -= offset;
-
-                } else {
-                    item.height += offset;
-                }
-            });
-
-            if collapsed {
-                self.height -= offset;
-
-            } else {
-                self.height += offset;
-            }
-
-        }
-    }
-
-    pub fn visual_index(&mut self, visual_index: usize) -> usize {
-
-        let mut i = 0;
-        let mut target_index = visual_index;
-
-        while i < self.items.len() {
-
-            if target_index == i {
-                return i;
-
-            } else if self.get_collapsed(i) {
-                let children = self.get_children(i);
-                i += children;
-                target_index += children;
-            }
-
-            i += 1;
-
-        }
-
-        self.len()
-
-    }
-
-    fn print(&self) {
-
-        let mut i = 0;
-        while i < self.len() {
-
-            let item = &self.items[i];
-            if item.collapsed {
-                i += item.children + 1;
-                println!("{: >width$}> {} ({} / {} / {})", "", item.value, item.level, item.children, item.height, width=item.level * 2);
-
-            } else {
-                println!("{: >width$}- {} ({} / {} / {})", "", item.value, item.level, item.children, item.height, width=item.level * 2);
-                i += 1;
-            }
-
-        }
-
-    }
-
-    fn to_vec(&self) -> Vec<(usize, bool, String, usize, usize)> {
-
-        let mut list = Vec::new();
-        let mut i = 0;
-        while i < self.len() {
-
-
-            let item = &self.items[i];
-            if item.collapsed {
-                i += item.children + 1;
-
-            } else {
-                i += 1;
-            }
-
-            list.push((item.level, item.collapsed, format!("{}", item.value), item.children, item.height));
-
-        }
-
-        list
-
-    }
-
-    fn traverse_up<C: Fn(&mut TreeNode<T>)>(&mut self, index: usize, offset: usize, cb: C) {
+    fn traverse_up<C: FnMut(&mut TreeNode<T>)>(&mut self, index: usize, offset: usize, mut cb: C) {
         let mut level = self.items[index].level + offset;
         for i in 0..index + 1 {
             if self.items[index - i].level < level {
@@ -415,6 +450,56 @@ impl<T: Display> TreeList<T> {
 #[cfg(test)]
 mod test {
 
+    use std::fmt;
+    use super::TreeList;
+
+    // Debug Implementations --------------------------------------------------
+    impl<T: fmt::Display + fmt::Debug> TreeList<T> {
+
+        fn print(&self) {
+
+            let mut i = 0;
+            while i < self.len() {
+
+                let item = &self.items[i];
+                if item.is_collapsed {
+                    i += item.children + 1;
+                    println!("{: >width$}> {} ({} / {} / {})", "", item.value, item.level, item.children, item.height, width=item.level * 2);
+
+                } else {
+                    println!("{: >width$}- {} ({} / {} / {})", "", item.value, item.level, item.children, item.height, width=item.level * 2);
+                    i += 1;
+                }
+
+            }
+
+        }
+
+        fn to_vec(&self) -> Vec<(usize, bool, String, usize, usize)> {
+
+            let mut list = Vec::new();
+            let mut i = 0;
+            while i < self.len() {
+
+
+                let item = &self.items[i];
+                if item.is_collapsed {
+                    i += item.children + 1;
+
+                } else {
+                    i += 1;
+                }
+
+                list.push((item.level, item.is_collapsed, format!("{}", item.value), item.children, item.height));
+
+            }
+
+            list
+
+        }
+
+    }
+
     #[test]
     fn test_create() {
         use super::TreeList;
@@ -433,10 +518,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        assert_eq!(tree.insert(Placement::After, 0, "1".to_string()), 0);
-        assert_eq!(tree.insert(Placement::After, 0, "2".to_string()), 1);
-        assert_eq!(tree.insert(Placement::After, 1, "3".to_string()), 2);
-        assert_eq!(tree.insert(Placement::After, 2, "4".to_string()), 3);
+        assert_eq!(tree.insert_item(Placement::After, 0, "1".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::After, 0, "2".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::After, 1, "3".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::After, 2, "4".to_string()), Some(3));
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 0, 1),
@@ -456,10 +541,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        assert_eq!(tree.insert(Placement::After, 0, "1".to_string()), 0);
-        assert_eq!(tree.insert(Placement::After, 10, "2".to_string()), 1);
-        assert_eq!(tree.insert(Placement::After, 20, "3".to_string()), 2);
-        assert_eq!(tree.insert(Placement::After, 30, "4".to_string()), 3);
+        assert_eq!(tree.insert_item(Placement::After, 0, "1".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::After, 10, "2".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::After, 20, "3".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::After, 30, "4".to_string()), Some(3));
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 0, 1),
@@ -479,11 +564,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::After, 0, "Parent".to_string());
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::After, 1, "2".to_string());
-        tree.insert(Placement::After, 2, "3".to_string());
-        tree.insert(Placement::After, 3, "4".to_string());
+        tree.insert_item(Placement::After, 0, "Parent".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::After, 1, "2".to_string());
+        tree.insert_item(Placement::After, 2, "3".to_string());
+        tree.insert_item(Placement::After, 3, "4".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -496,9 +581,9 @@ mod test {
         assert_eq!(tree.len(), 5);
         assert_eq!(tree.height(), 5);
 
-        tree.insert(Placement::After, 0, "12".to_string());
-        tree.insert(Placement::After, 0, "11".to_string());
-        tree.insert(Placement::After, 0, "10".to_string());
+        tree.insert_item(Placement::After, 0, "12".to_string());
+        tree.insert_item(Placement::After, 0, "11".to_string());
+        tree.insert_item(Placement::After, 0, "10".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -511,7 +596,7 @@ mod test {
             (0, false, "12".to_string(), 0, 1)
         ]);
 
-        tree.insert(Placement::After, 6, "after".to_string());
+        tree.insert_item(Placement::After, 6, "after".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -533,10 +618,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        assert_eq!(tree.insert(Placement::Before, 0, "4".to_string()), 0);
-        assert_eq!(tree.insert(Placement::Before, 0, "1".to_string()), 0);
-        assert_eq!(tree.insert(Placement::Before, 1, "2".to_string()), 1);
-        assert_eq!(tree.insert(Placement::Before, 2, "3".to_string()), 2);
+        assert_eq!(tree.insert_item(Placement::Before, 0, "4".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::Before, 0, "1".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::Before, 1, "2".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::Before, 2, "3".to_string()), Some(2));
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 0, 1),
@@ -556,11 +641,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Before, 0, "Parent".to_string());
-        tree.insert(Placement::Child, 0, "4".to_string());
-        tree.insert(Placement::Before, 1, "1".to_string());
-        tree.insert(Placement::Before, 2, "2".to_string());
-        tree.insert(Placement::Before, 3, "3".to_string());
+        tree.insert_item(Placement::Before, 0, "Parent".to_string());
+        tree.insert_item(Placement::Child, 0, "4".to_string());
+        tree.insert_item(Placement::Before, 1, "1".to_string());
+        tree.insert_item(Placement::Before, 2, "2".to_string());
+        tree.insert_item(Placement::Before, 3, "3".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -581,11 +666,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "3".to_string());
-        tree.insert(Placement::Child, 2, "4".to_string());
-        tree.insert(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 2, "4".to_string());
+        tree.insert_item(Placement::Child, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -606,15 +691,15 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
 
-        assert_eq!(tree.insert(Placement::Child, 0, "2a".to_string()), 1);
-        assert_eq!(tree.insert(Placement::Child, 1, "3a".to_string()), 2);
-        assert_eq!(tree.insert(Placement::Child, 2, "4a".to_string()), 3);
+        assert_eq!(tree.insert_item(Placement::Child, 0, "2a".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::Child, 1, "3a".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::Child, 2, "4a".to_string()), Some(3));
 
-        assert_eq!(tree.insert(Placement::Child, 0, "2b".to_string()), 4);
-        assert_eq!(tree.insert(Placement::Child, 4, "3b".to_string()), 5);
-        assert_eq!(tree.insert(Placement::Child, 5, "4b".to_string()), 6);
+        assert_eq!(tree.insert_item(Placement::Child, 0, "2b".to_string()), Some(4));
+        assert_eq!(tree.insert_item(Placement::Child, 4, "3b".to_string()), Some(5));
+        assert_eq!(tree.insert_item(Placement::Child, 5, "4b".to_string()), Some(6));
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 6, 7),
@@ -637,11 +722,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        assert_eq!(tree.insert(Placement::Parent, 0, "5".to_string()), 0);
-        assert_eq!(tree.insert(Placement::Parent, 0, "4".to_string()), 0);
-        assert_eq!(tree.insert(Placement::Parent, 0, "3".to_string()), 0);
-        assert_eq!(tree.insert(Placement::Parent, 0, "2".to_string()), 0);
-        assert_eq!(tree.insert(Placement::Parent, 0, "1".to_string()), 0);
+        assert_eq!(tree.insert_item(Placement::Parent, 0, "5".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::Parent, 0, "4".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::Parent, 0, "3".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::Parent, 0, "2".to_string()), Some(0));
+        assert_eq!(tree.insert_item(Placement::Parent, 0, "1".to_string()), Some(0));
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -662,13 +747,13 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::After, 0, "Root".to_string());
-        tree.insert(Placement::Child, 1, "1".to_string());
-        tree.insert(Placement::After, 1, "6".to_string());
-        tree.insert(Placement::After, 1, "5".to_string());
-        tree.insert(Placement::After, 1, "4".to_string());
-        tree.insert(Placement::After, 1, "3".to_string());
-        tree.insert(Placement::After, 1, "2".to_string());
+        tree.insert_item(Placement::After, 0, "Root".to_string());
+        tree.insert_item(Placement::Child, 1, "1".to_string());
+        tree.insert_item(Placement::After, 1, "6".to_string());
+        tree.insert_item(Placement::After, 1, "5".to_string());
+        tree.insert_item(Placement::After, 1, "4".to_string());
+        tree.insert_item(Placement::After, 1, "3".to_string());
+        tree.insert_item(Placement::After, 1, "2".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Root".to_string(), 6, 7),
@@ -683,7 +768,7 @@ mod test {
         assert_eq!(tree.len(), 7);
         assert_eq!(tree.height(), 7);
 
-        tree.insert(Placement::Parent, 3, "Parent".to_string());
+        tree.insert_item(Placement::Parent, 3, "Parent".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Root".to_string(), 7, 8),
@@ -707,15 +792,15 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "8".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "8".to_string());
 
-        tree.insert(Placement::Parent, 2, "7".to_string());
-        tree.insert(Placement::Parent, 2, "6".to_string());
-        tree.insert(Placement::Parent, 2, "5".to_string());
-        tree.insert(Placement::Parent, 2, "4".to_string());
-        tree.insert(Placement::Parent, 2, "3".to_string());
+        tree.insert_item(Placement::Parent, 2, "7".to_string());
+        tree.insert_item(Placement::Parent, 2, "6".to_string());
+        tree.insert_item(Placement::Parent, 2, "5".to_string());
+        tree.insert_item(Placement::Parent, 2, "4".to_string());
+        tree.insert_item(Placement::Parent, 2, "3".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 7, 8),
@@ -739,11 +824,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Before, 0, "Parent".to_string());
-        tree.insert(Placement::Child, 0, "Child 1".to_string());
-        tree.insert(Placement::Child, 0, "Child 2".to_string());
-        tree.insert(Placement::Child, 2, "Nested Child".to_string());
-        tree.insert(Placement::Before, 2, "Before".to_string());
+        tree.insert_item(Placement::Before, 0, "Parent".to_string());
+        tree.insert_item(Placement::Child, 0, "Child 1".to_string());
+        tree.insert_item(Placement::Child, 0, "Child 2".to_string());
+        tree.insert_item(Placement::Child, 2, "Nested Child".to_string());
+        tree.insert_item(Placement::Before, 2, "Before".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -764,11 +849,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::After, 0, "Parent".to_string());
-        tree.insert(Placement::Child, 0, "Child 1".to_string());
-        tree.insert(Placement::Child, 0, "Child 2".to_string());
-        tree.insert(Placement::Child, 2, "Nested Child".to_string());
-        tree.insert(Placement::After, 1, "After".to_string());
+        tree.insert_item(Placement::After, 0, "Parent".to_string());
+        tree.insert_item(Placement::Child, 0, "Child 1".to_string());
+        tree.insert_item(Placement::Child, 0, "Child 2".to_string());
+        tree.insert_item(Placement::Child, 2, "Nested Child".to_string());
+        tree.insert_item(Placement::After, 1, "After".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -789,13 +874,13 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::After, 0, "Parent".to_string());
-        tree.insert(Placement::Child, 0, "Child 1".to_string());
-        tree.insert(Placement::Child, 0, "Child 2".to_string());
-        tree.insert(Placement::Child, 2, "Nested Child".to_string());
-        tree.insert(Placement::After, 0, "After Parent".to_string());
-        tree.insert(Placement::After, 0, "After Parent 2".to_string());
-        tree.insert(Placement::After, 2, "After Child 2".to_string());
+        tree.insert_item(Placement::After, 0, "Parent".to_string());
+        tree.insert_item(Placement::Child, 0, "Child 1".to_string());
+        tree.insert_item(Placement::Child, 0, "Child 2".to_string());
+        tree.insert_item(Placement::Child, 2, "Nested Child".to_string());
+        tree.insert_item(Placement::After, 0, "After Parent".to_string());
+        tree.insert_item(Placement::After, 0, "After Parent 2".to_string());
+        tree.insert_item(Placement::After, 2, "After Child 2".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -813,20 +898,20 @@ mod test {
     }
 
     #[test]
-    fn test_collapse_and_visual_index() {
+    fn test_collapse_and_row_to_item_index() {
 
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
 
-        tree.insert(Placement::Child, 0, "2a".to_string());
-        tree.insert(Placement::Child, 1, "3a".to_string());
-        tree.insert(Placement::Child, 2, "4a".to_string());
+        tree.insert_item(Placement::Child, 0, "2a".to_string());
+        tree.insert_item(Placement::Child, 1, "3a".to_string());
+        tree.insert_item(Placement::Child, 2, "4a".to_string());
 
-        tree.insert(Placement::Child, 0, "2b".to_string());
-        tree.insert(Placement::Child, 4, "3b".to_string());
-        tree.insert(Placement::Child, 5, "4b".to_string());
+        tree.insert_item(Placement::Child, 0, "2b".to_string());
+        tree.insert_item(Placement::Child, 4, "3b".to_string());
+        tree.insert_item(Placement::Child, 5, "4b".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 6, 7),
@@ -841,9 +926,9 @@ mod test {
         assert_eq!(tree.len(), 7);
         assert_eq!(tree.height(), 7);
 
-        assert_eq!(tree.visual_index(0), 0);
-        assert_eq!(tree.visual_index(1), 1);
-        assert_eq!(tree.visual_index(4), 4);
+        assert_eq!(tree.row_to_item_index(0), 0);
+        assert_eq!(tree.row_to_item_index(1), 1);
+        assert_eq!(tree.row_to_item_index(4), 4);
 
         tree.set_collapsed(1, true);
 
@@ -858,9 +943,9 @@ mod test {
         assert_eq!(tree.len(), 7);
         assert_eq!(tree.height(), 5);
 
-        assert_eq!(tree.visual_index(0), 0);
-        assert_eq!(tree.visual_index(1), 1);
-        assert_eq!(tree.visual_index(2), 4);
+        assert_eq!(tree.row_to_item_index(0), 0);
+        assert_eq!(tree.row_to_item_index(1), 1);
+        assert_eq!(tree.row_to_item_index(2), 4);
 
         tree.set_collapsed(4, true);
 
@@ -873,9 +958,9 @@ mod test {
         assert_eq!(tree.len(), 7);
         assert_eq!(tree.height(), 3);
 
-        assert_eq!(tree.visual_index(0), 0);
-        assert_eq!(tree.visual_index(1), 1);
-        assert_eq!(tree.visual_index(2), 4);
+        assert_eq!(tree.row_to_item_index(0), 0);
+        assert_eq!(tree.row_to_item_index(1), 1);
+        assert_eq!(tree.row_to_item_index(2), 4);
 
         tree.set_collapsed(1, false);
 
@@ -891,7 +976,7 @@ mod test {
         assert_eq!(tree.len(), 7);
         assert_eq!(tree.height(), 5);
 
-        assert_eq!(tree.visual_index(4), 4);
+        assert_eq!(tree.row_to_item_index(4), 4);
 
         tree.set_collapsed(4, false);
 
@@ -916,11 +1001,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "3".to_string());
-        tree.insert(Placement::Child, 2, "4".to_string());
-        tree.insert(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 2, "4".to_string());
+        tree.insert_item(Placement::Child, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -980,15 +1065,15 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
 
-        tree.insert(Placement::Child, 0, "2a".to_string());
-        tree.insert(Placement::Child, 1, "3a".to_string());
-        tree.insert(Placement::Child, 2, "4a".to_string());
+        tree.insert_item(Placement::Child, 0, "2a".to_string());
+        tree.insert_item(Placement::Child, 1, "3a".to_string());
+        tree.insert_item(Placement::Child, 2, "4a".to_string());
 
-        tree.insert(Placement::Child, 0, "2b".to_string());
-        tree.insert(Placement::Child, 4, "3b".to_string());
-        tree.insert(Placement::Child, 5, "4b".to_string());
+        tree.insert_item(Placement::Child, 0, "2b".to_string());
+        tree.insert_item(Placement::Child, 4, "3b".to_string());
+        tree.insert_item(Placement::Child, 5, "4b".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 6, 7),
@@ -1001,7 +1086,7 @@ mod test {
         ]);
 
         let indicies: Vec<usize> = (0..tree.height()).map(|row| {
-            tree.visual_index(row)
+            tree.row_to_item_index(row)
 
         }).collect();
 
@@ -1011,11 +1096,49 @@ mod test {
         tree.set_collapsed(1, true);
 
         let indicies: Vec<usize> = (0..tree.height()).map(|row| {
-            tree.visual_index(row)
+            tree.row_to_item_index(row)
 
         }).collect();
 
         assert_eq!(indicies, vec![0, 1, 4, 5, 6]);
+
+    }
+
+    #[test]
+    fn test_insert_after_collapsed() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2a".to_string());
+        tree.insert_item(Placement::Child, 1, "3a".to_string());
+        tree.insert_item(Placement::Child, 2, "4a".to_string());
+
+        tree.set_collapsed(0, true);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, true, "1".to_string(), 3, 1)
+        ]);
+
+        let i = tree.row_to_item_index(0);
+        assert_eq!(tree.insert_item(Placement::After, i, "5".to_string()), Some(1));
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, true, "1".to_string(), 3, 1),
+            (0, false, "5".to_string(), 0, 1)
+        ]);
+
+        let i = tree.row_to_item_index(1);
+        assert_eq!(tree.insert_item(Placement::Child, i, "6a".to_string()), Some(2));
+
+        let i = tree.row_to_item_index(1);
+        assert_eq!(tree.insert_item(Placement::Child, i, "7".to_string()), Some(3));
+
+        let i = tree.row_to_item_index(1);
+        tree.set_collapsed(i, true);
+
+        assert_eq!(tree.insert_item(Placement::After, i, "8".to_string()), Some(2));
 
     }
 
@@ -1025,10 +1148,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Before, 0, "4".to_string());
-        tree.insert(Placement::Before, 0, "1".to_string());
-        tree.insert(Placement::Before, 1, "2".to_string());
-        tree.insert(Placement::Before, 2, "3".to_string());
+        tree.insert_item(Placement::Before, 0, "4".to_string());
+        tree.insert_item(Placement::Before, 0, "1".to_string());
+        tree.insert_item(Placement::Before, 1, "2".to_string());
+        tree.insert_item(Placement::Before, 2, "3".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 0, 1),
@@ -1077,11 +1200,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "3".to_string());
-        tree.insert(Placement::Child, 2, "4".to_string());
-        tree.insert(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 2, "4".to_string());
+        tree.insert_item(Placement::Child, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -1142,11 +1265,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "3".to_string());
-        tree.insert(Placement::Child, 2, "4".to_string());
-        tree.insert(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 2, "4".to_string());
+        tree.insert_item(Placement::Child, 3, "5".to_string());
 
         tree.set_collapsed(2, true);
 
@@ -1174,11 +1297,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "Parent".to_string());
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::After, 1, "2".to_string());
-        tree.insert(Placement::After, 2, "3".to_string());
-        tree.insert(Placement::After, 3, "4".to_string());
+        tree.insert_item(Placement::Child, 0, "Parent".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::After, 1, "2".to_string());
+        tree.insert_item(Placement::After, 2, "3".to_string());
+        tree.insert_item(Placement::After, 3, "4".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
@@ -1233,11 +1356,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "3".to_string());
-        tree.insert(Placement::Child, 2, "4".to_string());
-        tree.insert(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 2, "4".to_string());
+        tree.insert_item(Placement::Child, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -1279,10 +1402,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Before, 0, "4".to_string());
-        tree.insert(Placement::Before, 0, "1".to_string());
-        tree.insert(Placement::Before, 1, "2".to_string());
-        tree.insert(Placement::Before, 2, "3".to_string());
+        tree.insert_item(Placement::Before, 0, "4".to_string());
+        tree.insert_item(Placement::Before, 0, "1".to_string());
+        tree.insert_item(Placement::Before, 1, "2".to_string());
+        tree.insert_item(Placement::Before, 2, "3".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 0, 1),
@@ -1314,11 +1437,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert(Placement::Child, 0, "1".to_string());
-        tree.insert(Placement::Child, 0, "2".to_string());
-        tree.insert(Placement::Child, 1, "3".to_string());
-        tree.insert(Placement::Child, 2, "4".to_string());
-        tree.insert(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 2, "4".to_string());
+        tree.insert_item(Placement::Child, 3, "5".to_string());
 
         tree.set_collapsed(2, true);
 
@@ -1341,6 +1464,89 @@ mod test {
     }
 
     #[test]
+    fn test_insert_child_when_collapsed() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+
+        tree.set_collapsed(1, true);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 1, 2),
+            (1, true, "2".to_string(), 0, 1),
+        ]);
+
+        assert_eq!(tree.len(), 2);
+        assert_eq!(tree.height(), 2);
+
+        assert_eq!(tree.insert_item(Placement::Child, 1, "3".to_string()), None);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 2, 2),
+            (1, true, "2".to_string(), 1, 1)
+        ]);
+        assert_eq!(tree.len(), 3);
+        assert_eq!(tree.height(), 2);
+
+        tree.set_collapsed(1, false);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 2, 3),
+            (1, false, "2".to_string(), 1, 2),
+            (2, false, "3".to_string(), 0, 1)
+        ]);
+        assert_eq!(tree.len(), 3);
+        assert_eq!(tree.height(), 3);
+    }
+
+    #[test]
+    fn test_remove_child_when_collapsed() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+
+        tree.set_collapsed(1, true);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 2, 2),
+            (1, true, "2".to_string(), 1, 1),
+        ]);
+
+        // TODO need remove_children method first
+
+    }
+
+    #[test]
+    fn test_insert_container_collapse() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_container_item(Placement::Child, 0, "1".to_string());
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, true, "1".to_string(), 0, 1)
+        ]);
+
+        assert_eq!(tree.len(), 1);
+        assert_eq!(tree.height(), 1);
+
+        tree.set_collapsed(0, false);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 0, 1)
+        ]);
+
+    }
+
+    #[test]
     fn test_custom_tree_item() {
 
         use std::fmt;
@@ -1358,7 +1564,7 @@ mod test {
         }
 
         let mut tree = TreeList::<TreeItem>::new();
-        tree.insert(Placement::After, 0, TreeItem {
+        tree.insert_item(Placement::After, 0, TreeItem {
             value: 42
         });
 

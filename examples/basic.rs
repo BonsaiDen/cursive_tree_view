@@ -61,7 +61,7 @@ fn main() {
         set_status(siv, row, "Selected");
     });
 
-    tree.set_on_collapse(|siv: &mut Cursive, row, collpased| {
+    tree.set_on_collapse(|siv: &mut Cursive, row, collpased, _| {
         if collpased {
             set_status(siv, row, "Collpased");
 
@@ -75,7 +75,7 @@ fn main() {
     fn insert_row(s: &mut Cursive, text: &str, placement: Placement) {
         let row = s.call_on_id("tree", move |tree: &mut TreeView<String>| {
             let row = tree.row().unwrap_or(0);
-            tree.insert_item(text.to_string(), placement, row)
+            tree.insert_item(text.to_string(), placement, row).unwrap_or(0)
         });
         set_status(s, row.unwrap(), "Row inserted");
     }

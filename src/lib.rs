@@ -14,7 +14,7 @@ extern crate cursive;
 use std::cmp;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 
 // External Dependencies ------------------------------------------------------
@@ -51,11 +51,11 @@ pub use tree_list::Placement;
 /// tree.insert_item("3".to_string(), Placement::Child, 2);
 /// # }
 /// ```
-pub struct TreeView<T: Display> {
+pub struct TreeView<T: Display + Debug> {
     enabled: bool,
     on_submit: Option<Rc<Fn(&mut Cursive, usize)>>,
     on_select: Option<Rc<Fn(&mut Cursive, usize)>>,
-    on_collapse: Option<Rc<Fn(&mut Cursive, usize, bool)>>,
+    on_collapse: Option<Rc<Fn(&mut Cursive, usize, bool, usize)>>,
 
     scrollbase: ScrollBase,
     last_size: Vec2,
@@ -63,7 +63,7 @@ pub struct TreeView<T: Display> {
     list: TreeList<T>
 }
 
-impl<T: Display> TreeView<T> {
+impl<T: Display + Debug> TreeView<T> {
 
     /// Creates a new, empty `TreeView`.
     pub fn new() -> Self {
@@ -173,14 +173,14 @@ impl<T: Display> TreeView<T> {
     /// # Example
     ///
     /// ```norun
-    /// table.set_on_collapse(|siv: &mut Cursive, row: usize, collapsed: bool| {
+    /// table.set_on_collapse(|siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
     ///
     /// });
     /// ```
     pub fn set_on_collapse<F>(&mut self, cb: F)
-        where F: Fn(&mut Cursive, usize, bool) + 'static
+        where F: Fn(&mut Cursive, usize, bool, usize) + 'static
     {
-        self.on_collapse = Some(Rc::new(move |s, row, collapsed| cb(s, row, collapsed)));
+        self.on_collapse = Some(Rc::new(move |s, row, collapsed, children| cb(s, row, collapsed, children)));
     }
 
     /// Sets a callback to be used when an item has its children collapsed or expanded.
@@ -190,12 +190,12 @@ impl<T: Display> TreeView<T> {
     /// # Example
     ///
     /// ```norun
-    /// table.on_collapse(|siv: &mut Cursive, row: usize| {
+    /// table.on_collapse(|siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
     ///
     /// });
     /// ```
     pub fn on_collapse<F>(self, cb: F) -> Self
-        where F: Fn(&mut Cursive, usize, bool) + 'static
+        where F: Fn(&mut Cursive, usize, bool, usize) + 'static
     {
         self.with(|t| t.set_on_collapse(cb))
     }
@@ -234,43 +234,64 @@ impl<T: Display> TreeView<T> {
     }
 
     /// Selects the row at the specified index.
-    pub fn set_selected_row(&mut self, row_index: usize) {
-        self.focus = row_index;
-        self.scrollbase.scroll_to(row_index);
+    pub fn set_selected_row(&mut self, row: usize) {
+        self.focus = row;
+        self.scrollbase.scroll_to(row);
     }
 
     /// Selects the row at the specified index.
     ///
     /// Chainable variant.
-    pub fn selected_row(self, row_index: usize) -> Self {
-        self.with(|t| t.set_selected_row(row_index))
+    pub fn selected_row(self, row: usize) -> Self {
+        self.with(|t| t.set_selected_row(row))
     }
 
-    /// Returns a immmutable reference to the item at the given row.
-    pub fn borrow_item(&mut self, row_index: usize) -> Option<&T> {
-        let index = self.list.visual_index(row_index);
+    /// Returns a immutable reference to the item at the given row.
+    pub fn borrow_item(&mut self, row: usize) -> Option<&T> {
+        let index = self.list.row_to_item_index(row);
         self.list.get(index)
     }
 
     /// Returns a mutable reference to the item at the given row.
-    pub fn borrow_item_mut(&mut self, row_index: usize) -> Option<&mut T> {
-        let index = self.list.visual_index(row_index);
+    pub fn borrow_item_mut(&mut self, row: usize) -> Option<&mut T> {
+        let index = self.list.row_to_item_index(row);
         self.list.get_mut(index)
     }
 
     /// Inserts a new `item` at the given `row` with the specified
-    /// [`Placement`](enum.Placement.html), returning the row index of the item
+    /// [`Placement`](enum.Placement.html), returning the visual row of the item
     /// occupies after its insertion.
-    pub fn insert_item(&mut self, item: T, placement: Placement, row: usize) -> usize {
-        let index = self.list.visual_index(row);
-        self.list.insert(placement, index, item)
+    ///
+    /// > Note: If the item is not visible because one of its parents is collapsed
+    /// > `None` will be returned since there is no visible row for the item to
+    /// > occupy.
+    pub fn insert_item(&mut self, item: T, placement: Placement, row: usize) -> Option<usize> {
+        let index = self.list.row_to_item_index(row);
+        self.list.insert_item(placement, index, item)
     }
+
+    /// Inserts a new `container` at the given `row` with the specified
+    /// [`Placement`](enum.Placement.html), returning the visual row of the
+    /// container occupies after its insertion.
+    ///
+    /// A container is identical to a normal item except for the fact that it
+    /// can always be collapsed even if it does not contain any children.
+    ///
+    /// > Note: If the container is not visible because one of its parents is
+    /// > collapsed `None` will be returned since there is no visible row for
+    /// > the container to occupy.
+    pub fn insert_container_item(&mut self, item: T, placement: Placement, row: usize) -> Option<usize> {
+        let index = self.list.row_to_item_index(row);
+        self.list.insert_container_item(placement, index, item)
+    }
+
+    // TODO add method for removing only an items children
 
     /// Removes the item at the given `row` along with all of its children.
     ///
     /// The returned vector contains the removed items in top to bottom order.
     pub fn remove_item(&mut self, row: usize) -> Option<Vec<T>> {
-        let index = self.list.visual_index(row);
+        let index = self.list.row_to_item_index(row);
         let removed = self.list.remove_with_children(index);
         self.focus = cmp::min(self.focus, self.list.height() - 1);
         removed
@@ -280,7 +301,7 @@ impl<T: Display> TreeView<T> {
     ///
     /// All of the items children will be moved up one level within the tree.
     pub fn extract_item(&mut self, row: usize) -> Option<T> {
-        let index = self.list.visual_index(row);
+        let index = self.list.row_to_item_index(row);
         let removed = self.list.remove(index);
         self.focus = cmp::min(self.focus, self.list.height() - 1);
         removed
@@ -288,19 +309,19 @@ impl<T: Display> TreeView<T> {
 
     /// Collapses the children of the given `row`.
     pub fn collapse_item(&mut self, row: usize) {
-        let index = self.list.visual_index(row);
+        let index = self.list.row_to_item_index(row);
         self.list.set_collapsed(index, true);
     }
 
     /// Expands the children of the given `row`.
     pub fn expand_item(&mut self, row: usize) {
-        let index = self.list.visual_index(row);
+        let index = self.list.row_to_item_index(row);
         self.list.set_collapsed(index, false);
     }
 
     /// Collapses or expands the children of the given `row`.
     pub fn set_collapsed(&mut self, row: usize, collapsed: bool) {
-        let index = self.list.visual_index(row);
+        let index = self.list.row_to_item_index(row);
         self.list.set_collapsed(index, collapsed);
     }
 
@@ -313,7 +334,7 @@ impl<T: Display> TreeView<T> {
 
 }
 
-impl<T: Display> TreeView<T> {
+impl<T: Display + Debug> TreeView<T> {
 
     fn focus_up(&mut self, n: usize) {
         self.focus -= cmp::min(self.focus, n);
@@ -325,19 +346,21 @@ impl<T: Display> TreeView<T> {
 
 }
 
-impl<T: Display> View for TreeView<T> {
+impl<T: Display + Debug> View for TreeView<T> {
 
     fn draw(&self, printer: &Printer) {
 
+        let index = self.list.row_to_item_index(self.scrollbase.start_line);
         let items = self.list.items();
-        let list_index = Rc::new(RefCell::new(self.scrollbase.start_line));
+        let list_index = Rc::new(RefCell::new(index));
 
         self.scrollbase.draw(printer, |printer, i| {
 
             let mut index = list_index.borrow_mut();
+
             let item = &items[*index];
 
-            if item.collapsed {
+            if item.is_collapsed {
                 *index += item.children + 1;
 
             } else {
@@ -356,8 +379,8 @@ impl<T: Display> View for TreeView<T> {
                 ColorStyle::Primary
             };
 
-            if item.children > 0 {
-                if item.collapsed {
+            if item.is_container {
+                if item.is_collapsed {
                     printer.print((item.level * 2, 0), "▸");
 
                 } else {
@@ -438,18 +461,19 @@ impl<T: Display> View for TreeView<T> {
             Event::Key(Key::Enter) => if !self.is_empty() {
 
                 let row = self.focus;
-                let index = self.list.visual_index(row);
-                let collapsed = self.list.get_collapsed(index);
-                let children = self.list.get_children(index);
+                let index = self.list.row_to_item_index(row);
 
-                if children > 0 {
+                if self.list.is_container_item(index) {
+
+                    let collapsed = self.list.get_collapsed(index);
+                    let children = self.list.get_children(index);
 
                     self.list.set_collapsed(index, !collapsed);
 
                     if self.on_collapse.is_some() {
                         let cb = self.on_collapse.clone().unwrap();
                         return EventResult::Consumed(Some(Callback::from_fn(move |s| {
-                            cb(s, row, !collapsed)
+                            cb(s, row, !collapsed, children)
                         })));
                     }
 
