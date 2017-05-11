@@ -3,17 +3,52 @@ use std::cmp;
 use std::fmt::{Debug, Display};
 
 
-// TODO add methods to hide implementation
 #[derive(Debug)]
 pub struct TreeNode<T: Display + Debug> {
-    pub value: T,
-    pub is_collapsed: bool,
-    pub level: usize,
-    pub children: usize,
-    pub height: usize,
-    pub is_container: bool,
+    value: T,
+    level: usize,
+    is_collapsed: bool,
+    children: usize,
+    height: usize,
+    is_container: bool,
     collapsed_height: Option<usize>
 }
+
+impl<T: Display + Debug> TreeNode<T> {
+
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    pub fn level(&self) -> usize {
+        self.level
+    }
+
+    pub fn len(&self) -> usize {
+        if self.is_collapsed {
+            self.children + 1
+
+        } else {
+            1
+        }
+    }
+
+    pub fn symbol(&self) -> &str {
+        if self.is_container {
+            if self.is_collapsed {
+                "▸"
+
+            } else {
+                "▾"
+            }
+
+        } else {
+            "◦"
+        }
+    }
+
+}
+
 
 /// Determines how items are inserted into a [`TreeView`](struct.TreeView.html).
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]

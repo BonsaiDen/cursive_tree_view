@@ -359,13 +359,7 @@ impl<T: Display + Debug> View for TreeView<T> {
             let mut index = list_index.borrow_mut();
 
             let item = &items[*index];
-
-            if item.is_collapsed {
-                *index += item.children + 1;
-
-            } else {
-                *index += 1;
-            };
+            *index += item.len();
 
             let color = if i == self.focus {
                 if self.enabled && printer.focused {
@@ -379,22 +373,12 @@ impl<T: Display + Debug> View for TreeView<T> {
                 ColorStyle::Primary
             };
 
-            if item.is_container {
-                if item.is_collapsed {
-                    printer.print((item.level * 2, 0), "▸");
-
-                } else {
-                    printer.print((item.level * 2, 0), "▾");
-                }
-
-            } else {
-                printer.print((item.level * 2, 0), "◦");
-            }
+            printer.print((item.level() * 2, 0), item.symbol());
 
             printer.with_color(color, |printer| {
                 printer.print(
-                    (item.level * 2 + 2, 0),
-                    format!("{}", item.value).as_str()
+                    (item.level() * 2 + 2, 0),
+                    format!("{}", item.value()).as_str()
                 );
             });
 
@@ -405,7 +389,7 @@ impl<T: Display + Debug> View for TreeView<T> {
     fn required_size(&mut self, req: Vec2) -> Vec2 {
 
         let width: usize = self.list.items().iter().map(|item| {
-            item.level * 2 + format!("{}", item.value).len() + 2
+            item.level() * 2 + format!("{}", item.value()).len() + 2
 
         }).max().unwrap_or(0);
 
