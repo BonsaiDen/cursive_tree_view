@@ -77,10 +77,10 @@ fn main() {
 
         for i in entries {
             if i.dir.is_some() {
-                tree.insert_container_item(i, Placement::Child, parent_row);
+                tree.insert_container_item(i, Placement::LastChild, parent_row);
 
             } else {
-                tree.insert_item(i, Placement::Child, parent_row);
+                tree.insert_item(i, Placement::LastChild, parent_row);
             }
         }
 

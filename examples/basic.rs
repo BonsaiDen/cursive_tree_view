@@ -22,15 +22,15 @@ fn main() {
 
     // Tree -------------------------------------------------------------------
     let mut tree = TreeView::new();
-    tree.insert_item("tree_view".to_string(), Placement::Child, 0);
+    tree.insert_item("tree_view".to_string(), Placement::LastChild, 0);
 
-    tree.insert_item("src".to_string(), Placement::Child, 0);
-    tree.insert_item("tree_list".to_string(), Placement::Child, 1);
-    tree.insert_item("mod.rs".to_string(), Placement::Child, 2);
+    tree.insert_item("src".to_string(), Placement::LastChild, 0);
+    tree.insert_item("tree_list".to_string(), Placement::LastChild, 1);
+    tree.insert_item("mod.rs".to_string(), Placement::LastChild, 2);
 
-    tree.insert_item("2b".to_string(), Placement::Child, 0);
-    tree.insert_item("3b".to_string(), Placement::Child, 4);
-    tree.insert_item("4b".to_string(), Placement::Child, 5);
+    tree.insert_item("2b".to_string(), Placement::LastChild, 0);
+    tree.insert_item("3b".to_string(), Placement::LastChild, 4);
+    tree.insert_item("4b".to_string(), Placement::LastChild, 5);
 
     tree.insert_item("yet".to_string(), Placement::After, 0);
     tree.insert_item("another".to_string(), Placement::After, 0);
@@ -83,7 +83,8 @@ fn main() {
     siv.add_global_callback('b', |s| insert_row(s, "Before", Placement::Before));
     siv.add_global_callback('a', |s| insert_row(s, "After", Placement::After));
     siv.add_global_callback('p', |s| insert_row(s, "Parent", Placement::Parent));
-    siv.add_global_callback('c', |s| insert_row(s, "Child", Placement::Child));
+    siv.add_global_callback('f', |s| insert_row(s, "FirstChild", Placement::FirstChild));
+    siv.add_global_callback('l', |s| insert_row(s, "LastChild", Placement::LastChild));
 
     siv.add_global_callback('r', |s| {
         s.call_on_id("tree", move |tree: &mut TreeView<String>| {
@@ -101,7 +102,7 @@ fn main() {
         });
     });
 
-    siv.add_global_callback('l', |s| {
+    siv.add_global_callback('c', |s| {
         s.call_on_id("tree", move |tree: &mut TreeView<String>| {
             tree.clear();
         });
@@ -118,11 +119,12 @@ Enter - Collapse children or submit row.
 b - Insert before row.
 a - Insert after row.
 p - Insert parent above row.
-c - Insert child for row.
+f - Insert as first child of row.
+l - Insert as last child of row.
 e - Extract row without children.
 r - Remove row and children.
-l - Clear all items.
-"#).min_height(10));
+c - Clear all items.
+"#).min_height(12));
 
     v_split.add_child(BoxView::with_full_height(DummyView));
     v_split.add_child(TextView::new("Last action: None").with_id("status"));

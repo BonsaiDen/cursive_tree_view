@@ -53,16 +53,24 @@ impl<T: Display + Debug> TreeNode<T> {
 /// Determines how items are inserted into a [`TreeView`](struct.TreeView.html).
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Placement {
+
     /// The item is inserted as a sibling after the specified row.
     After,
+
     /// The item is inserted as a sibling before the specified row.
     Before,
-    // TODO FirstChild / LastChild
-    /// The item is inserted as new child of the specified row, placed after
-    /// all other existing children.
-    Child,
+
+    /// The item is inserted as new child of the specified row, placed
+    /// before all other existing children.
+    FirstChild,
+
+    /// The item is inserted as new child of the specified row, placed
+    /// after all other existing children.
+    LastChild,
+
     /// The item is inserted as the new immediate parent of the specified row.
     Parent
+
 }
 
 #[derive(Debug)]
@@ -382,7 +390,11 @@ impl<T: Display + Debug> TreeList<T> {
                         (None, index, 0, false)
                     }
                 },
-                Placement::Child => {
+                Placement::FirstChild => {
+                    let parent = self.items.get(index).expect("Tree should not be empty");
+                    (Some(index), index + 1, parent.level + 1, false)
+                },
+                Placement::LastChild => {
                     let parent = self.items.get(index).expect("Tree should not be empty");
                     (Some(index), index + 1 + parent.children, parent.level + 1, false)
                 },
@@ -633,7 +645,7 @@ mod test {
 
         let mut tree = TreeList::<String>::new();
         tree.insert_item(Placement::After, 0, "Parent".to_string());
-        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
         tree.insert_item(Placement::After, 1, "2".to_string());
         tree.insert_item(Placement::After, 2, "3".to_string());
         tree.insert_item(Placement::After, 3, "4".to_string());
@@ -710,7 +722,7 @@ mod test {
 
         let mut tree = TreeList::<String>::new();
         tree.insert_item(Placement::Before, 0, "Parent".to_string());
-        tree.insert_item(Placement::Child, 0, "4".to_string());
+        tree.insert_item(Placement::LastChild, 0, "4".to_string());
         tree.insert_item(Placement::Before, 1, "1".to_string());
         tree.insert_item(Placement::Before, 2, "2".to_string());
         tree.insert_item(Placement::Before, 3, "3".to_string());
@@ -729,16 +741,16 @@ mod test {
     }
 
     #[test]
-    fn test_insert_child() {
+    fn test_insert_last_child() {
 
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 2, "4".to_string());
-        tree.insert_item(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4".to_string());
+        tree.insert_item(Placement::LastChild, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -754,20 +766,20 @@ mod test {
     }
 
     #[test]
-    fn test_insert_child_double() {
+    fn test_insert_last_child_double() {
 
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
 
-        assert_eq!(tree.insert_item(Placement::Child, 0, "2a".to_string()), Some(1));
-        assert_eq!(tree.insert_item(Placement::Child, 1, "3a".to_string()), Some(2));
-        assert_eq!(tree.insert_item(Placement::Child, 2, "4a".to_string()), Some(3));
+        assert_eq!(tree.insert_item(Placement::LastChild, 0, "2a".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::LastChild, 1, "3a".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::LastChild, 2, "4a".to_string()), Some(3));
 
-        assert_eq!(tree.insert_item(Placement::Child, 0, "2b".to_string()), Some(4));
-        assert_eq!(tree.insert_item(Placement::Child, 4, "3b".to_string()), Some(5));
-        assert_eq!(tree.insert_item(Placement::Child, 5, "4b".to_string()), Some(6));
+        assert_eq!(tree.insert_item(Placement::LastChild, 0, "2b".to_string()), Some(4));
+        assert_eq!(tree.insert_item(Placement::LastChild, 4, "3b".to_string()), Some(5));
+        assert_eq!(tree.insert_item(Placement::LastChild, 5, "4b".to_string()), Some(6));
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 6, 7),
@@ -781,6 +793,88 @@ mod test {
 
         assert_eq!(tree.len(), 7);
         assert_eq!(tree.height(), 7);
+
+    }
+
+    #[test]
+    fn test_insert_first_child() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::FirstChild, 0, "1".to_string());
+        tree.insert_item(Placement::FirstChild, 0, "2".to_string());
+        tree.insert_item(Placement::FirstChild, 1, "3".to_string());
+        tree.insert_item(Placement::FirstChild, 2, "4".to_string());
+        tree.insert_item(Placement::FirstChild, 3, "5".to_string());
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 4, 5),
+            (1, false, "2".to_string(), 3, 4),
+            (2, false, "3".to_string(), 2, 3),
+            (3, false, "4".to_string(), 1, 2),
+            (4, false, "5".to_string(), 0, 1)
+        ]);
+
+        assert_eq!(tree.len(), 5);
+        assert_eq!(tree.height(), 5);
+
+    }
+
+    #[test]
+    fn test_insert_first_child_double() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::FirstChild, 0, "1".to_string());
+
+        assert_eq!(tree.insert_item(Placement::FirstChild, 0, "2a".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::FirstChild, 1, "3a".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::FirstChild, 2, "4a".to_string()), Some(3));
+
+        assert_eq!(tree.insert_item(Placement::FirstChild, 0, "2b".to_string()), Some(1));
+        assert_eq!(tree.insert_item(Placement::FirstChild, 1, "3b".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::FirstChild, 2, "4b".to_string()), Some(3));
+
+        tree.print();
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 6, 7),
+            (1, false, "2b".to_string(), 2, 3),
+            (2, false, "3b".to_string(), 1, 2),
+            (3, false, "4b".to_string(), 0, 1),
+            (1, false, "2a".to_string(), 2, 3),
+            (2, false, "3a".to_string(), 1, 2),
+            (3, false, "4a".to_string(), 0, 1)
+        ]);
+
+        assert_eq!(tree.len(), 7);
+        assert_eq!(tree.height(), 7);
+
+    }
+
+    #[test]
+    fn test_insert_first_child_multiple() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::FirstChild, 0, "1".to_string());
+        tree.insert_item(Placement::FirstChild, 0, "2".to_string());
+        tree.insert_item(Placement::FirstChild, 1, "5".to_string());
+        tree.insert_item(Placement::FirstChild, 1, "4".to_string());
+        tree.insert_item(Placement::FirstChild, 1, "3".to_string());
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 4, 5),
+            (1, false, "2".to_string(), 3, 4),
+            (2, false, "3".to_string(), 0, 1),
+            (2, false, "4".to_string(), 0, 1),
+            (2, false, "5".to_string(), 0, 1)
+        ]);
+
+        assert_eq!(tree.len(), 5);
+        assert_eq!(tree.height(), 5);
 
     }
 
@@ -816,7 +910,7 @@ mod test {
 
         let mut tree = TreeList::<String>::new();
         tree.insert_item(Placement::After, 0, "Root".to_string());
-        tree.insert_item(Placement::Child, 1, "1".to_string());
+        tree.insert_item(Placement::LastChild, 1, "1".to_string());
         tree.insert_item(Placement::After, 1, "6".to_string());
         tree.insert_item(Placement::After, 1, "5".to_string());
         tree.insert_item(Placement::After, 1, "4".to_string());
@@ -860,9 +954,9 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "8".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "8".to_string());
 
         tree.insert_item(Placement::Parent, 2, "7".to_string());
         tree.insert_item(Placement::Parent, 2, "6".to_string());
@@ -893,17 +987,17 @@ mod test {
 
         let mut tree = TreeList::<String>::new();
         tree.insert_item(Placement::Before, 0, "Parent".to_string());
-        tree.insert_item(Placement::Child, 0, "Child 1".to_string());
-        tree.insert_item(Placement::Child, 0, "Child 2".to_string());
-        tree.insert_item(Placement::Child, 2, "Nested Child".to_string());
+        tree.insert_item(Placement::LastChild, 0, "LastChild 1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "LastChild 2".to_string());
+        tree.insert_item(Placement::LastChild, 2, "Nested LastChild".to_string());
         tree.insert_item(Placement::Before, 2, "Before".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
-            (1, false, "Child 1".to_string(), 0, 1),
+            (1, false, "LastChild 1".to_string(), 0, 1),
             (1, false, "Before".to_string(), 0, 1),
-            (1, false, "Child 2".to_string(), 1, 2),
-            (2, false, "Nested Child".to_string(), 0, 1)
+            (1, false, "LastChild 2".to_string(), 1, 2),
+            (2, false, "Nested LastChild".to_string(), 0, 1)
         ]);
 
         assert_eq!(tree.len(), 5);
@@ -918,17 +1012,17 @@ mod test {
 
         let mut tree = TreeList::<String>::new();
         tree.insert_item(Placement::After, 0, "Parent".to_string());
-        tree.insert_item(Placement::Child, 0, "Child 1".to_string());
-        tree.insert_item(Placement::Child, 0, "Child 2".to_string());
-        tree.insert_item(Placement::Child, 2, "Nested Child".to_string());
+        tree.insert_item(Placement::LastChild, 0, "LastChild 1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "LastChild 2".to_string());
+        tree.insert_item(Placement::LastChild, 2, "Nested LastChild".to_string());
         tree.insert_item(Placement::After, 1, "After".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
-            (1, false, "Child 1".to_string(), 0, 1),
+            (1, false, "LastChild 1".to_string(), 0, 1),
             (1, false, "After".to_string(), 0, 1),
-            (1, false, "Child 2".to_string(), 1, 2),
-            (2, false, "Nested Child".to_string(), 0, 1)
+            (1, false, "LastChild 2".to_string(), 1, 2),
+            (2, false, "Nested LastChild".to_string(), 0, 1)
         ]);
 
         assert_eq!(tree.len(), 5);
@@ -943,19 +1037,19 @@ mod test {
 
         let mut tree = TreeList::<String>::new();
         tree.insert_item(Placement::After, 0, "Parent".to_string());
-        tree.insert_item(Placement::Child, 0, "Child 1".to_string());
-        tree.insert_item(Placement::Child, 0, "Child 2".to_string());
-        tree.insert_item(Placement::Child, 2, "Nested Child".to_string());
+        tree.insert_item(Placement::LastChild, 0, "LastChild 1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "LastChild 2".to_string());
+        tree.insert_item(Placement::LastChild, 2, "Nested LastChild".to_string());
         tree.insert_item(Placement::After, 0, "After Parent".to_string());
         tree.insert_item(Placement::After, 0, "After Parent 2".to_string());
-        tree.insert_item(Placement::After, 2, "After Child 2".to_string());
+        tree.insert_item(Placement::After, 2, "After LastChild 2".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "Parent".to_string(), 4, 5),
-            (1, false, "Child 1".to_string(), 0, 1),
-            (1, false, "Child 2".to_string(), 1, 2),
-            (2, false, "Nested Child".to_string(), 0, 1),
-            (1, false, "After Child 2".to_string(), 0, 1),
+            (1, false, "LastChild 1".to_string(), 0, 1),
+            (1, false, "LastChild 2".to_string(), 1, 2),
+            (2, false, "Nested LastChild".to_string(), 0, 1),
+            (1, false, "After LastChild 2".to_string(), 0, 1),
             (0, false, "After Parent 2".to_string(), 0, 1),
             (0, false, "After Parent".to_string(), 0, 1)
         ]);
@@ -971,15 +1065,15 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
 
-        tree.insert_item(Placement::Child, 0, "2a".to_string());
-        tree.insert_item(Placement::Child, 1, "3a".to_string());
-        tree.insert_item(Placement::Child, 2, "4a".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2a".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3a".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4a".to_string());
 
-        tree.insert_item(Placement::Child, 0, "2b".to_string());
-        tree.insert_item(Placement::Child, 4, "3b".to_string());
-        tree.insert_item(Placement::Child, 5, "4b".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2b".to_string());
+        tree.insert_item(Placement::LastChild, 4, "3b".to_string());
+        tree.insert_item(Placement::LastChild, 5, "4b".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 6, 7),
@@ -1069,11 +1163,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 2, "4".to_string());
-        tree.insert_item(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4".to_string());
+        tree.insert_item(Placement::LastChild, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -1133,15 +1227,15 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
 
-        tree.insert_item(Placement::Child, 0, "2a".to_string());
-        tree.insert_item(Placement::Child, 1, "3a".to_string());
-        tree.insert_item(Placement::Child, 2, "4a".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2a".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3a".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4a".to_string());
 
-        tree.insert_item(Placement::Child, 0, "2b".to_string());
-        tree.insert_item(Placement::Child, 4, "3b".to_string());
-        tree.insert_item(Placement::Child, 5, "4b".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2b".to_string());
+        tree.insert_item(Placement::LastChild, 4, "3b".to_string());
+        tree.insert_item(Placement::LastChild, 5, "4b".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 6, 7),
@@ -1178,10 +1272,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2a".to_string());
-        tree.insert_item(Placement::Child, 1, "3a".to_string());
-        tree.insert_item(Placement::Child, 2, "4a".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2a".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3a".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4a".to_string());
 
         tree.set_collapsed(0, true);
 
@@ -1198,10 +1292,10 @@ mod test {
         ]);
 
         let i = tree.row_to_item_index(1);
-        assert_eq!(tree.insert_item(Placement::Child, i, "6a".to_string()), Some(2));
+        assert_eq!(tree.insert_item(Placement::LastChild, i, "6a".to_string()), Some(2));
 
         let i = tree.row_to_item_index(1);
-        assert_eq!(tree.insert_item(Placement::Child, i, "7".to_string()), Some(3));
+        assert_eq!(tree.insert_item(Placement::LastChild, i, "7".to_string()), Some(3));
 
         let i = tree.row_to_item_index(1);
         tree.set_collapsed(i, true);
@@ -1268,11 +1362,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 2, "4".to_string());
-        tree.insert_item(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4".to_string());
+        tree.insert_item(Placement::LastChild, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -1333,11 +1427,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 2, "4".to_string());
-        tree.insert_item(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4".to_string());
+        tree.insert_item(Placement::LastChild, 3, "5".to_string());
 
         tree.set_collapsed(2, true);
 
@@ -1365,8 +1459,8 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "Parent".to_string());
-        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "Parent".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
         tree.insert_item(Placement::After, 1, "2".to_string());
         tree.insert_item(Placement::After, 2, "3".to_string());
         tree.insert_item(Placement::After, 3, "4".to_string());
@@ -1424,11 +1518,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 2, "4".to_string());
-        tree.insert_item(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4".to_string());
+        tree.insert_item(Placement::LastChild, 3, "5".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 4, 5),
@@ -1505,11 +1599,11 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 2, "4".to_string());
-        tree.insert_item(Placement::Child, 3, "5".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 2, "4".to_string());
+        tree.insert_item(Placement::LastChild, 3, "5".to_string());
 
         tree.set_collapsed(2, true);
 
@@ -1537,8 +1631,8 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
 
         tree.set_collapsed(1, true);
 
@@ -1550,7 +1644,7 @@ mod test {
         assert_eq!(tree.len(), 2);
         assert_eq!(tree.height(), 2);
 
-        assert_eq!(tree.insert_item(Placement::Child, 1, "3".to_string()), None);
+        assert_eq!(tree.insert_item(Placement::LastChild, 1, "3".to_string()), None);
 
         assert_eq!(tree.to_vec(), vec![
             (0, false, "1".to_string(), 2, 2),
@@ -1578,9 +1672,9 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
 
         tree.set_collapsed(1, true);
 
@@ -1599,10 +1693,10 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_item(Placement::Child, 0, "1".to_string());
-        tree.insert_item(Placement::Child, 0, "2".to_string());
-        tree.insert_item(Placement::Child, 1, "3".to_string());
-        tree.insert_item(Placement::Child, 1, "4".to_string());
+        tree.insert_item(Placement::LastChild, 0, "1".to_string());
+        tree.insert_item(Placement::LastChild, 0, "2".to_string());
+        tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 1, "4".to_string());
 
         tree.set_collapsed(0, true);
 
@@ -1643,7 +1737,7 @@ mod test {
         use super::{TreeList, Placement};
 
         let mut tree = TreeList::<String>::new();
-        tree.insert_container_item(Placement::Child, 0, "1".to_string());
+        tree.insert_container_item(Placement::LastChild, 0, "1".to_string());
 
         assert_eq!(tree.to_vec(), vec![
             (0, true, "1".to_string(), 0, 1)

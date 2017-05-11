@@ -44,11 +44,11 @@ pub use tree_list::Placement;
 /// # fn main() {
 /// let mut tree = TreeView::new();
 ///
-/// tree.insert_item("root".to_string(), Placement::Child, 0);
+/// tree.insert_item("root".to_string(), Placement::LastChild, 0);
 ///
-/// tree.insert_item("1".to_string(), Placement::Child, 0);
-/// tree.insert_item("2".to_string(), Placement::Child, 1);
-/// tree.insert_item("3".to_string(), Placement::Child, 2);
+/// tree.insert_item("1".to_string(), Placement::LastChild, 0);
+/// tree.insert_item("2".to_string(), Placement::LastChild, 1);
+/// tree.insert_item("3".to_string(), Placement::LastChild, 2);
 /// # }
 /// ```
 pub struct TreeView<T: Display + Debug> {
