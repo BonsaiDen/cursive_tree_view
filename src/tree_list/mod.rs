@@ -220,40 +220,73 @@ impl<T: Display + Debug> TreeList<T> {
                 let item = &mut self.items[index];
                 if item.is_collapsed != collapsed {
 
-                    item.is_collapsed = collapsed;
+                    // Uncollapse items early in order to propagate height
+                    // changes to parents correctly
+                    if !collapsed {
+                        item.is_collapsed = false;
+                    }
 
                     // Remove the height if we are collpasing
                     // This way already collapsed children are not counted in
                     // We also store the height for later unfolding.
                     if collapsed {
                         item.collapsed_height = Some(item.height);
-                        item.height - 1
+                        Some(item.height - 1)
 
                     } else {
-                        item.collapsed_height.take().unwrap() - 1
+                        Some(item.collapsed_height.take().unwrap() - 1)
                     }
 
                 } else {
-                    0
+                    None
                 }
             };
 
-            // TODO fix underflow when collapsing a child of a already collapsed
-            // parent
-            self.traverse_up(index, 1, |item| {
+            if let Some(offset) = offset {
+
+                let mut inside_collapsed = false;
+                self.traverse_up(index, 1, |item| {
+
+                    inside_collapsed |= item.is_collapsed;
+
+                    // Modify the collapsed height of the parent if required
+                    if item.is_collapsed {
+                        if collapsed {
+                            item.collapsed_height = Some(item.collapsed_height.unwrap() - offset);
+
+                        } else {
+                            item.collapsed_height = Some(item.collapsed_height.unwrap() + offset);
+                        }
+
+                    // Ignore all parents beyond the first collapsed one as the
+                    // changes in height cannot visibly propagate any further
+                    } else if !inside_collapsed {
+                        if collapsed {
+                            item.height -= offset;
+
+                        } else {
+                            item.height += offset;
+                        }
+                    }
+                });
+
+                // Collapse items late in order to propagate height changes to
+                // parents correctly
                 if collapsed {
-                    item.height -= offset;
-
-                } else {
-                    item.height += offset;
+                    let item = &mut self.items[index];
+                    item.is_collapsed = true;
                 }
-            });
 
-            if collapsed {
-                self.height -= offset;
+                // Complete tree height is only affected when not contained
+                // within an already collapsed parent
+                if !inside_collapsed {
+                    if collapsed {
+                        self.height -= offset;
 
-            } else {
-                self.height += offset;
+                    } else {
+                        self.height += offset;
+                    }
+                }
             }
 
         }
@@ -1533,8 +1566,10 @@ mod test {
             (1, false, "2".to_string(), 1, 2),
             (2, false, "3".to_string(), 0, 1)
         ]);
+
         assert_eq!(tree.len(), 3);
         assert_eq!(tree.height(), 3);
+
     }
 
     #[test]
@@ -1555,6 +1590,50 @@ mod test {
         ]);
 
         // TODO need remove_children method first
+
+    }
+
+    #[test]
+    fn test_collapse_within_collapsed_parent() {
+
+        use super::{TreeList, Placement};
+
+        let mut tree = TreeList::<String>::new();
+        tree.insert_item(Placement::Child, 0, "1".to_string());
+        tree.insert_item(Placement::Child, 0, "2".to_string());
+        tree.insert_item(Placement::Child, 1, "3".to_string());
+        tree.insert_item(Placement::Child, 1, "4".to_string());
+
+        tree.set_collapsed(0, true);
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, true, "1".to_string(), 3, 1),
+        ]);
+
+        assert_eq!(tree.len(), 4);
+        assert_eq!(tree.height(), 1);
+
+        println!("foo");
+        tree.set_collapsed(1, true);
+        assert_eq!(tree.to_vec(), vec![
+            (0, true, "1".to_string(), 3, 1),
+        ]);
+
+        assert_eq!(tree.len(), 4);
+        assert_eq!(tree.height(), 1);
+
+        println!("bar");
+        tree.set_collapsed(0, false);
+
+        tree.print();
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 3, 2),
+            (1, true, "2".to_string(), 2, 1)
+        ]);
+
+        assert_eq!(tree.len(), 4);
+        assert_eq!(tree.height(), 2);
 
     }
 
