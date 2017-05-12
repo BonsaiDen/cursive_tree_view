@@ -164,7 +164,47 @@ impl<T: Display + Debug> TreeList<T> {
 
     }
 
-    // TODO add method for removing only an items children
+    pub fn remove_children(&mut self, index: usize) -> Option<Vec<T>> {
+
+        if index < self.len() {
+
+            let (item_height, item_children, was_collapsed) = {
+                let item = &self.items[index];
+                (item.height - 1, item.children, item.is_collapsed)
+            };
+
+            // Uncollapse to avoid additional height calculation
+            self.set_collapsed(index, false);
+
+            // Reduce height and children of all parents
+            self.traverse_up(index, 1, |item| {
+                item.children -= item_children;
+                item.height -= item_height;
+            });
+
+            // Reduce tree height
+            self.height -= item_height;
+
+            // Remove children
+            let removed_items = if item_children > 0 {
+                self.items.drain(index + 1..index + 1 + item_children).map(|item| {
+                    item.value
+
+                }).collect()
+
+            } else {
+                Vec::new()
+            };
+
+            self.set_collapsed(index, was_collapsed);
+
+            Some(removed_items)
+
+        } else {
+            None
+        }
+
+    }
 
     pub fn remove_with_children(&mut self, index: usize) -> Option<Vec<T>> {
 
@@ -186,15 +226,14 @@ impl<T: Display + Debug> TreeList<T> {
 
             // Remove item
             let item = self.items.remove(index);
-            let child_count = item.children;
 
             // Reduce tree height
             self.height -= item.height;
 
             // Remove children
             let mut removed_items = vec![item.value];
-            if child_count > 0 {
-                removed_items.append(&mut self.items.drain(index..index + child_count).map(|item| {
+            if item_children > 0 {
+                removed_items.append(&mut self.items.drain(index..index + item_children).map(|item| {
                     item.value
 
                 }).collect())
@@ -1675,15 +1714,33 @@ mod test {
         tree.insert_item(Placement::LastChild, 0, "1".to_string());
         tree.insert_item(Placement::LastChild, 0, "2".to_string());
         tree.insert_item(Placement::LastChild, 1, "3".to_string());
+        tree.insert_item(Placement::LastChild, 1, "4".to_string());
+        tree.insert_item(Placement::After, 0, "5".to_string());
 
         tree.set_collapsed(1, true);
 
         assert_eq!(tree.to_vec(), vec![
-            (0, false, "1".to_string(), 2, 2),
-            (1, true, "2".to_string(), 1, 1),
+            (0, false, "1".to_string(), 3, 2),
+            (1, true, "2".to_string(), 2, 1),
+            (0, false, "5".to_string(), 0, 1)
         ]);
 
-        // TODO need remove_children method first
+        assert_eq!(tree.len(), 5);
+        assert_eq!(tree.height(), 3);
+
+        assert_eq!(tree.remove_children(1), Some(vec![
+            "3".to_string(),
+            "4".to_string()
+        ]));
+
+        assert_eq!(tree.to_vec(), vec![
+            (0, false, "1".to_string(), 1, 2),
+            (1, true, "2".to_string(), 0, 1),
+            (0, false, "5".to_string(), 0, 1)
+        ]);
+
+        assert_eq!(tree.len(), 3);
+        assert_eq!(tree.height(), 3);
 
     }
 

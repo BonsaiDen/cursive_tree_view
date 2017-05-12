@@ -33,11 +33,18 @@ use tree_list::TreeList;
 pub use tree_list::Placement;
 
 
-/// View to select an item among a tree.
+/// A low level tree view.
+///
+/// Each view provides a number of low level methods for manipulating its
+/// contained items and their structure.
+///
+/// All interactions are performed via relative (i.e. visual) `row` indices which
+/// makes reasoning about behaviour much easier in the context of interactive
+/// user manipulation of the tree.
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// # extern crate cursive;
 /// # extern crate cursive_tree_view;
 /// # use cursive_tree_view::{TreeView, Placement};
@@ -107,10 +114,17 @@ impl<T: Display + Debug> TreeView<T> {
     ///
     /// # Example
     ///
-    /// ```norun
-    /// table.set_on_submit(|siv: &mut Cursive, row: usize| {
+    /// ```rust
+    /// # extern crate cursive;
+    /// # extern crate cursive_tree_view;
+    /// # use cursive::Cursive;
+    /// # use cursive_tree_view::TreeView;
+    /// # fn main() {
+    /// # let mut tree = TreeView::<String>::new();
+    /// tree.set_on_submit(|siv: &mut Cursive, row: usize| {
     ///
     /// });
+    /// # }
     /// ```
     pub fn set_on_submit<F>(&mut self, cb: F)
         where F: Fn(&mut Cursive, usize) + 'static
@@ -125,10 +139,17 @@ impl<T: Display + Debug> TreeView<T> {
     ///
     /// # Example
     ///
-    /// ```norun
-    /// table.on_submit(|siv: &mut Cursive, row: usize| {
+    /// ```rust
+    /// # extern crate cursive;
+    /// # extern crate cursive_tree_view;
+    /// # use cursive::Cursive;
+    /// # use cursive_tree_view::TreeView;
+    /// # fn main() {
+    /// # let mut tree = TreeView::<String>::new();
+    /// tree.on_submit(|siv: &mut Cursive, row: usize| {
     ///
     /// });
+    /// # }
     /// ```
     pub fn on_submit<F>(self, cb: F) -> Self
         where F: Fn(&mut Cursive, usize) + 'static
@@ -140,10 +161,17 @@ impl<T: Display + Debug> TreeView<T> {
     ///
     /// # Example
     ///
-    /// ```norun
-    /// table.set_on_select(|siv: &mut Cursive, row: usize| {
+    /// ```rust
+    /// # extern crate cursive;
+    /// # extern crate cursive_tree_view;
+    /// # use cursive::Cursive;
+    /// # use cursive_tree_view::TreeView;
+    /// # fn main() {
+    /// # let mut tree = TreeView::<String>::new();
+    /// tree.set_on_select(|siv: &mut Cursive, row: usize| {
     ///
     /// });
+    /// # }
     /// ```
     pub fn set_on_select<F>(&mut self, cb: F)
         where F: Fn(&mut Cursive, usize) + 'static
@@ -157,10 +185,17 @@ impl<T: Display + Debug> TreeView<T> {
     ///
     /// # Example
     ///
-    /// ```norun
-    /// table.on_select(|siv: &mut Cursive, row: usize| {
+    /// ```rust
+    /// # extern crate cursive;
+    /// # extern crate cursive_tree_view;
+    /// # use cursive::Cursive;
+    /// # use cursive_tree_view::TreeView;
+    /// # fn main() {
+    /// # let mut tree = TreeView::<String>::new();
+    /// tree.on_select(|siv: &mut Cursive, row: usize| {
     ///
     /// });
+    /// # }
     /// ```
     pub fn on_select<F>(self, cb: F) -> Self
         where F: Fn(&mut Cursive, usize) + 'static
@@ -172,10 +207,17 @@ impl<T: Display + Debug> TreeView<T> {
     ///
     /// # Example
     ///
-    /// ```norun
-    /// table.set_on_collapse(|siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
+    /// ```rust
+    /// # extern crate cursive;
+    /// # extern crate cursive_tree_view;
+    /// # use cursive::Cursive;
+    /// # use cursive_tree_view::TreeView;
+    /// # fn main() {
+    /// # let mut tree = TreeView::<String>::new();
+    /// tree.set_on_collapse(|siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
     ///
     /// });
+    /// # }
     /// ```
     pub fn set_on_collapse<F>(&mut self, cb: F)
         where F: Fn(&mut Cursive, usize, bool, usize) + 'static
@@ -189,10 +231,17 @@ impl<T: Display + Debug> TreeView<T> {
     ///
     /// # Example
     ///
-    /// ```norun
-    /// table.on_collapse(|siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
+    /// ```rust
+    /// # extern crate cursive;
+    /// # extern crate cursive_tree_view;
+    /// # use cursive::Cursive;
+    /// # use cursive_tree_view::TreeView;
+    /// # fn main() {
+    /// # let mut tree = TreeView::<String>::new();
+    /// tree.on_collapse(|siv: &mut Cursive, row: usize, is_collapsed: bool, children: usize| {
     ///
     /// });
+    /// # }
     /// ```
     pub fn on_collapse<F>(self, cb: F) -> Self
         where F: Fn(&mut Cursive, usize, bool, usize) + 'static
@@ -213,17 +262,19 @@ impl<T: Display + Debug> TreeView<T> {
         items
     }
 
-    /// Returns the number of items in this table.
+    /// Returns the number of items in this tree.
     pub fn len(&self) -> usize {
         self.list.len()
     }
 
-    /// Returns `true` if this table has no item.
+    /// Returns `true` if this tree has no items.
     pub fn is_empty(&self) -> bool {
         self.list.is_empty()
     }
 
-    /// Returns the index of the currently selected table row.
+    /// Returns the index of the currently selected tree row.
+    ///
+    /// `None` is returned in case of the tree being empty.
     pub fn row(&self) -> Option<usize> {
         if self.is_empty() {
             None
@@ -247,12 +298,16 @@ impl<T: Display + Debug> TreeView<T> {
     }
 
     /// Returns a immutable reference to the item at the given row.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
     pub fn borrow_item(&mut self, row: usize) -> Option<&T> {
         let index = self.list.row_to_item_index(row);
         self.list.get(index)
     }
 
     /// Returns a mutable reference to the item at the given row.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
     pub fn borrow_item_mut(&mut self, row: usize) -> Option<&mut T> {
         let index = self.list.row_to_item_index(row);
         self.list.get_mut(index)
@@ -262,9 +317,9 @@ impl<T: Display + Debug> TreeView<T> {
     /// [`Placement`](enum.Placement.html), returning the visual row of the item
     /// occupies after its insertion.
     ///
-    /// > Note: If the item is not visible because one of its parents is collapsed
-    /// > `None` will be returned since there is no visible row for the item to
-    /// > occupy.
+    ///
+    /// `None` will be returned in case the item is not visible after insertion
+    /// due to one of its parents being in a collapsed state.
     pub fn insert_item(&mut self, item: T, placement: Placement, row: usize) -> Option<usize> {
         let index = self.list.row_to_item_index(row);
         self.list.insert_item(placement, index, item)
@@ -285,11 +340,11 @@ impl<T: Display + Debug> TreeView<T> {
         self.list.insert_container_item(placement, index, item)
     }
 
-    // TODO add method for removing only an items children
-
     /// Removes the item at the given `row` along with all of its children.
     ///
     /// The returned vector contains the removed items in top to bottom order.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
     pub fn remove_item(&mut self, row: usize) -> Option<Vec<T>> {
         let index = self.list.row_to_item_index(row);
         let removed = self.list.remove_with_children(index);
@@ -297,9 +352,23 @@ impl<T: Display + Debug> TreeView<T> {
         removed
     }
 
+    /// Removes all children of the item at the given `row`.
+    ///
+    /// The returned vector contains the removed children in top to bottom order.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
+    pub fn remove_children(&mut self, row: usize) -> Option<Vec<T>> {
+        let index = self.list.row_to_item_index(row);
+        let removed = self.list.remove_children(index);
+        self.focus = cmp::min(self.focus, self.list.height() - 1);
+        removed
+    }
+
     /// Extracts the item at the given `row` from the tree.
     ///
     /// All of the items children will be moved up one level within the tree.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
     pub fn extract_item(&mut self, row: usize) -> Option<T> {
         let index = self.list.row_to_item_index(row);
         let removed = self.list.remove(index);

@@ -10,15 +10,7 @@
 
 A basic tree view implementation for [cursive](https://crates.io/crates/cursive).
 
-![Picture of File View Example](https://cloud.githubusercontent.com/assets/124674/25919091/ddd9ac46-35cd-11e7-976a-e461e9b153f0.png)
-
-
-## Known issues TBF before initial release
-
-- [ ] Method for removing only the children of a item is missing
-- [x] `usize` underflow when collapsing an item contained by a already collapsed parent
-- [x] `Placement::Child` must be split up into `Placement::FirstChild` and `Placement::LastChild` for more precise use
-
+![Picture of File Viewer Example](https://cloud.githubusercontent.com/assets/124674/25919091/ddd9ac46-35cd-11e7-976a-e461e9b153f0.png)
 
 ## Usage
 

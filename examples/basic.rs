@@ -94,6 +94,14 @@ fn main() {
         });
     });
 
+    siv.add_global_callback('h', |s| {
+        s.call_on_id("tree", move |tree: &mut TreeView<String>| {
+            if let Some(row) = tree.row() {
+                tree.remove_children(row);
+            }
+        });
+    });
+
     siv.add_global_callback('e', |s| {
         s.call_on_id("tree", move |tree: &mut TreeView<String>| {
             if let Some(row) = tree.row() {
@@ -123,8 +131,9 @@ f - Insert as first child of row.
 l - Insert as last child of row.
 e - Extract row without children.
 r - Remove row and children.
+h - Remove only children.
 c - Clear all items.
-"#).min_height(12));
+"#).min_height(13));
 
     v_split.add_child(BoxView::with_full_height(DummyView));
     v_split.add_child(TextView::new("Last action: None").with_id("status"));
