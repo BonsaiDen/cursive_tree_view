@@ -10,7 +10,7 @@ categories = ["command-line-interface", "gui"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-cursive = { version = "0.5", git = "https://github.com/gyscos/Cursive.git", default-features = false }
+cursive = "0.5"
 
 [features]
 default = ["ncurses-backend"]
