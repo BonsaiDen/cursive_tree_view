@@ -10,7 +10,7 @@ categories = ["command-line-interface", "gui"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-cursive = "0.5"
+cursive = "0.6"
 
 [features]
 default = ["ncurses-backend"]
