@@ -8,6 +8,7 @@
 
 // Crate Dependencies ---------------------------------------------------------
 extern crate cursive;
+#[macro_use] extern crate debug_stub_derive;
 
 
 // STD Dependencies -----------------------------------------------------------
@@ -58,12 +59,20 @@ pub use tree_list::Placement;
 /// tree.insert_item("3".to_string(), Placement::LastChild, 2);
 /// # }
 /// ```
+#[derive(DebugStub)]
 pub struct TreeView<T: Display + Debug> {
     enabled: bool,
+
+    #[debug_stub(some="Rc<Fn(&mut Cursive, usize)")]
     on_submit: Option<Rc<Fn(&mut Cursive, usize)>>,
+
+    #[debug_stub(some="Rc<Fn(&mut Cursive, usize)")]
     on_select: Option<Rc<Fn(&mut Cursive, usize)>>,
+
+    #[debug_stub(some="Rc<Fn(&mut Cursive, usize, bool, usize)>")]
     on_collapse: Option<Rc<Fn(&mut Cursive, usize, bool, usize)>>,
 
+    #[debug_stub="ScrollBase"]
     scrollbase: ScrollBase,
     last_size: Vec2,
     focus: usize,

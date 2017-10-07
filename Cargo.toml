@@ -1,6 +1,6 @@
 [package]
 name = "cursive_tree_view"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Ivo Wetzel <ivo.wetzel@googlemail.com>"]
 description = "A tree view implementation for cursive."
 repository = "https://github.com/BonsaiDen/cursive_tree_view.git"
@@ -10,7 +10,8 @@ categories = ["command-line-interface", "gui"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
-cursive = "0.5"
+debug_stub_derive = "0.3.0"
+cursive = "0.6"
 
 [features]
 default = ["ncurses-backend"]
