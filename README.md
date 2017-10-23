@@ -5,8 +5,8 @@
 
 [cratesio-image]: https://img.shields.io/crates/v/cursive_tree_view.svg
 [cratesio]: https://crates.io/crates/cursive_tree_view
-[docsrs-image]: https://docs.rs/cursive_tree_view/badge.svg?version=0.1.0
-[docsrs]: https://docs.rs/cursive_tree_view/0.1.0/
+[docsrs-image]: https://docs.rs/cursive_tree_view/badge.svg?version=0.2.1
+[docsrs]: https://docs.rs/cursive_tree_view/0.2.1/
 
 A basic tree view implementation for [cursive](https://crates.io/crates/cursive).
 
@@ -18,7 +18,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cursive_tree_view = "0.1.0"
+cursive_tree_view = "0.2.1"
 ```
 
 and this to your crate root:
@@ -34,12 +34,12 @@ the identical features to your `cursive_tree_view` dependency:
 
 ```toml
 [dependencies.cursive]
-version = "0.5"
+version = "0.7"
 default-features = false
 features = ["blt-backend"]
 
 [dependencies.cursive_tree_view]
-version = "0.1.0"
+version = "0.2.1"
 default-features = false
 features = ["blt-backend"]
 ```
