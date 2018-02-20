@@ -34,7 +34,7 @@ the identical features to your `cursive_tree_view` dependency:
 
 ```toml
 [dependencies.cursive]
-version = "0.7"
+version = "0.8"
 default-features = false
 features = ["blt-backend"]
 

@@ -60,7 +60,7 @@ pub use tree_list::Placement;
 /// # }
 /// ```
 #[derive(DebugStub)]
-pub struct TreeView<T: Display + Debug> {
+pub struct TreeView<T: Display + Debug + 'static> {
     enabled: bool,
 
     #[debug_stub(some="Rc<Fn(&mut Cursive, usize)")]
@@ -79,7 +79,7 @@ pub struct TreeView<T: Display + Debug> {
     list: TreeList<T>
 }
 
-impl<T: Display + Debug> TreeView<T> {
+impl<T: Display + Debug + 'static> TreeView<T> {
 
     /// Creates a new, empty `TreeView`.
     pub fn new() -> Self {
@@ -412,7 +412,7 @@ impl<T: Display + Debug> TreeView<T> {
 
 }
 
-impl<T: Display + Debug> TreeView<T> {
+impl<T: Display + Debug + 'static> TreeView<T> {
 
     fn focus_up(&mut self, n: usize) {
         self.focus -= cmp::min(self.focus, n);
@@ -424,7 +424,7 @@ impl<T: Display + Debug> TreeView<T> {
 
 }
 
-impl<T: Display + Debug> View for TreeView<T> {
+impl<T: Display + Debug + 'static> View for TreeView<T> {
 
     fn draw(&self, printer: &Printer) {
 
@@ -441,14 +441,14 @@ impl<T: Display + Debug> View for TreeView<T> {
 
             let color = if i == self.focus {
                 if self.enabled && printer.focused {
-                    ColorStyle::Highlight
+                    ColorStyle::highlight()
 
                 } else {
-                    ColorStyle::HighlightInactive
+                    ColorStyle::highlight_inactive()
                 }
 
             } else {
-                ColorStyle::Primary
+                ColorStyle::primary()
             };
 
             printer.print((item.level() * 2, 0), item.symbol());
