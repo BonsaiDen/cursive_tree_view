@@ -11,7 +11,10 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 debug_stub_derive = "0.3.0"
-cursive = "0.7"
+
+[dependencies.cursive]
+version = "0.7"
+default-features = false
 
 [features]
 default = ["ncurses-backend"]
