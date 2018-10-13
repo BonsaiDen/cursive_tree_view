@@ -2,23 +2,18 @@
 extern crate cursive;
 extern crate cursive_tree_view;
 
-
 // External Dependencies ------------------------------------------------------
-use cursive::Cursive;
-use cursive::traits::*;
 use cursive::direction::Orientation;
-use cursive::views::{BoxView, Dialog, DummyView, LinearLayout, TextView, Panel};
-
+use cursive::traits::*;
+use cursive::views::{BoxView, Dialog, DummyView, LinearLayout, Panel, TextView};
+use cursive::Cursive;
 
 // Modules --------------------------------------------------------------------
-use cursive_tree_view::{TreeView, Placement};
-
+use cursive_tree_view::{Placement, TreeView};
 
 // Example --------------------------------------------------------------------
 fn main() {
-
     let mut siv = Cursive::default();
-
 
     // Tree -------------------------------------------------------------------
     let mut tree = TreeView::new();
@@ -39,22 +34,22 @@ fn main() {
     tree.insert_item("item".to_string(), Placement::After, 0);
     tree.insert_item("last".to_string(), Placement::After, 0);
 
-
     // Callbacks --------------------------------------------------------------
     tree.set_on_submit(|siv: &mut Cursive, row| {
-
         let value = siv.call_on_id("tree", move |tree: &mut TreeView<String>| {
             tree.borrow_item(row).unwrap().to_string()
         });
 
         siv.add_layer(
             Dialog::around(TextView::new(value.unwrap()))
-                   .title("Item submitted")
-                   .button("Close", |s| {s.pop_layer(); ()})
+                .title("Item submitted")
+                .button("Close", |s| {
+                    s.pop_layer();
+                    ()
+                }),
         );
 
         set_status(siv, row, "Submitted");
-
     });
 
     tree.set_on_select(|siv: &mut Cursive, row| {
@@ -64,18 +59,17 @@ fn main() {
     tree.set_on_collapse(|siv: &mut Cursive, row, collpased, _| {
         if collpased {
             set_status(siv, row, "Collpased");
-
-        } else{
+        } else {
             set_status(siv, row, "Unfolded");
         }
     });
-
 
     // Controls ---------------------------------------------------------------
     fn insert_row(s: &mut Cursive, text: &str, placement: Placement) {
         let row = s.call_on_id("tree", move |tree: &mut TreeView<String>| {
             let row = tree.row().unwrap_or(0);
-            tree.insert_item(text.to_string(), placement, row).unwrap_or(0)
+            tree.insert_item(text.to_string(), placement, row)
+                .unwrap_or(0)
         });
         set_status(s, row.unwrap(), "Row inserted");
     }
@@ -116,10 +110,11 @@ fn main() {
         });
     });
 
-
     // UI ---------------------------------------------------------------------
     let mut v_split = LinearLayout::new(Orientation::Vertical);
-    v_split.add_child(TextView::new(r#"
+    v_split.add_child(
+        TextView::new(
+            r#"
 -- Controls --
 
 Enter - Collapse children or submit row.
@@ -133,7 +128,9 @@ e - Extract row without children.
 r - Remove row and children.
 h - Remove only children.
 c - Clear all items.
-"#).min_height(13));
+"#,
+        ).min_height(13),
+    );
 
     v_split.add_child(BoxView::with_full_height(DummyView));
     v_split.add_child(TextView::new("Last action: None").with_id("status"));
@@ -143,23 +140,24 @@ c - Clear all items.
     h_split.add_child(BoxView::with_fixed_size((4, 0), DummyView));
     h_split.add_child(Panel::new(tree.with_id("tree")));
 
-    siv.add_layer(
-        Dialog::around(h_split).title("Tree View").max_height(20)
-    );
+    siv.add_layer(Dialog::around(h_split).title("Tree View").max_height(20));
 
     fn set_status(siv: &mut Cursive, row: usize, text: &str) {
-
         let value = siv.call_on_id("tree", move |tree: &mut TreeView<String>| {
-            tree.borrow_item(row).map(|s| s.to_string()).unwrap_or_else(|| "".to_string())
+            tree.borrow_item(row)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "".to_string())
         });
 
         siv.call_on_id("status", move |view: &mut TextView| {
-            view.set_content(format!("Last action: {} row #{} \"{}\"", text, row, value.unwrap()));
+            view.set_content(format!(
+                "Last action: {} row #{} \"{}\"",
+                text,
+                row,
+                value.unwrap()
+            ));
         });
-
     }
 
     siv.run();
-
 }
-
