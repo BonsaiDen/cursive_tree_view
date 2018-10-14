@@ -7,16 +7,16 @@
 )]
 
 // Crate Dependencies ---------------------------------------------------------
-extern crate cursive;
+#[macro_use] extern crate cursive;
 #[macro_use] extern crate debug_stub_derive;
-
+extern crate rand;
+extern crate regex;
 
 // STD Dependencies -----------------------------------------------------------
 use std::cmp;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fmt::{Debug, Display};
-
 
 // External Dependencies ------------------------------------------------------
 use cursive::With;
@@ -27,10 +27,13 @@ use cursive::{Cursive, Printer};
 use cursive::direction::Direction;
 use cursive::event::{Callback, Event, EventResult, Key};
 
-
 // Internal Dependencies ------------------------------------------------------
 mod tree_list;
+mod file;
 use tree_list::TreeList;
+
+// Re-exports ------------------------------------------------------
+pub use file::FileView;
 pub use tree_list::Placement;
 
 
@@ -77,6 +80,12 @@ pub struct TreeView<T: Display + Debug> {
     last_size: Vec2,
     focus: usize,
     list: TreeList<T>
+}
+
+impl<T: Display + Debug> Default for TreeView<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T: Display + Debug> TreeView<T> {
@@ -526,7 +535,6 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
                 let index = self.list.row_to_item_index(row);
 
                 if self.list.is_container_item(index) {
-
                     let collapsed = self.list.get_collapsed(index);
                     let children = self.list.get_children(index);
 

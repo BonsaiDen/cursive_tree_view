@@ -495,12 +495,12 @@ impl<T: Display + Debug> TreeList<T> {
 
         let initially_collapsed = is_container && children == 0;
         self.items.insert(item_index, TreeNode {
-            value: value,
+            value,
             is_collapsed: initially_collapsed,
-            level: level,
-            children: children,
+            level,
+            children,
             height: 1 + children,
-            is_container: is_container,
+            is_container,
             collapsed_height: if initially_collapsed {
                 Some(1)
 
