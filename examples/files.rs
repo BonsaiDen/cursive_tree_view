@@ -5,6 +5,8 @@ extern crate regex;
 
 // External Dependencies ------------------------------------------------------
 use cursive::direction::Orientation;
+use cursive::event::Key;
+use cursive::event::Event::CtrlChar;
 use cursive::traits::*;
 use cursive::views::{LinearLayout, TextArea};
 use cursive::Cursive;
@@ -17,10 +19,12 @@ fn main() {
     // Set up Cursive
     let mut siv = Cursive::default();
     siv.add_global_callback('q', |s| s.quit());
+    siv.add_global_callback(CtrlChar('w'), |s| s.quit());
+    siv.add_global_callback(Key::Esc, |s| s.quit());
     let regex = regex::Regex::new(r".*\.rs").expect("Good regex");
 
     // Create FileView targeted at the current working directory
-    let fileview = FileView::create(None, None, Some(regex))
+    let fileview = FileView::create(Some("..".into()), Some("src".into()), Some(regex))
         .expect("Should create")
         .on_submit(|s, f| {
             let _ = s.call_on_id("text", |t: &mut TextArea| {

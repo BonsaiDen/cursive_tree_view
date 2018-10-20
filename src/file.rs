@@ -245,19 +245,24 @@ impl FileView {
     fn init_view(&mut self) -> io::Result<()> {
         // Create the first tree entry for the given file or directory name
         let mut path = self.init_path.clone();
-        loop {
-            self.view
-                .insert_item(FileEntry::new(path.clone()), Placement::Before, 0);
-            if path == self.root_path {
-                break;
-            }
-            path = path
-                .parent()
-                .ok_or(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "Target not under base",
-                ))?.to_path_buf();
+        let root = self.root_path.clone();
+        let prefpath = path.clone();
+        let rel = prefpath.strip_prefix(&root)
+            .map_err(|_e| io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Target not under base",
+        ))?;
+        let mut row = self.view
+            .insert_item(FileEntry::new(path.clone()), Placement::LastChild, 0).expect("Bad add");
+        for comp in rel.iter() {
+            path.push(comp);
+            row = self.view
+                .insert_item(FileEntry::new(path.clone()), Placement::LastChild, row).expect("Bad add");
         }
+
+        // Select the init path - currently the last row
+        let selrow = self.view.len() - 1;
+        self.view.set_selected_row(selrow);
 
         // If the entry is a directory, expand it.
         let idx = self.view.len() - 1;
