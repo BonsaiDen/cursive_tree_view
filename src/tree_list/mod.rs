@@ -1630,7 +1630,7 @@ mod test {
         assert_eq!(tree.len(), 5);
         assert_eq!(tree.height(), 3);
 
-        assert_eq!(tree.remove(2), Some(("3".to_string())));
+        assert_eq!(tree.remove(2), Some("3".to_string()));
 
         assert_eq!(tree.len(), 4);
         assert_eq!(tree.height(), 4);

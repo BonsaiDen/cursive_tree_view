@@ -431,7 +431,7 @@ impl<T: Display + Debug> TreeView<T> {
     }
 }
 
-impl<T: Display + Debug> View for TreeView<T> {
+impl<T: Display + Debug + 'static> View for TreeView<T> {
     fn draw(&self, printer: &Printer) {
         let index = self.list.row_to_item_index(self.scrollbase.start_line);
         let items = self.list.items();
@@ -445,12 +445,12 @@ impl<T: Display + Debug> View for TreeView<T> {
 
             let color = if i == self.focus {
                 if self.enabled && printer.focused {
-                    ColorStyle::Highlight
+                    ColorStyle::highlight()
                 } else {
-                    ColorStyle::HighlightInactive
+                    ColorStyle::highlight_inactive()
                 }
             } else {
-                ColorStyle::Primary
+                ColorStyle::primary()
             };
 
             printer.print((item.level() * 2, 0), item.symbol());

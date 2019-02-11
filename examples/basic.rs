@@ -13,7 +13,7 @@ use cursive_tree_view::{Placement, TreeView};
 
 // Example --------------------------------------------------------------------
 fn main() {
-    let mut siv = Cursive::new();
+    let mut siv = Cursive::default();
 
     // Tree -------------------------------------------------------------------
     let mut tree = TreeView::new();
@@ -43,7 +43,9 @@ fn main() {
         siv.add_layer(
             Dialog::around(TextView::new(value.unwrap()))
                 .title("Item submitted")
-                .button("Close", |s| s.pop_layer()),
+                .button("Close", |s| {
+                    s.pop_layer();
+                }),
         );
 
         set_status(siv, row, "Submitted");
