@@ -33,6 +33,12 @@ mod tree_list;
 pub use tree_list::Placement;
 use tree_list::TreeList;
 
+/// Callback taking an item index as input.
+type IndexCallback = Rc<Fn(&mut Cursive, usize)>;
+
+/// Callback taking as input the row ID, the collapsed state, and the child ID.
+type CollapseCallback = Rc<Fn(&mut Cursive, usize, bool, usize)>;
+
 /// A low level tree view.
 ///
 /// Each view provides a number of low level methods for manipulating its
@@ -63,13 +69,13 @@ pub struct TreeView<T: Display + Debug> {
     enabled: bool,
 
     #[debug_stub(some = "Rc<Fn(&mut Cursive, usize)")]
-    on_submit: Option<Rc<Fn(&mut Cursive, usize)>>,
+    on_submit: Option<IndexCallback>,
 
     #[debug_stub(some = "Rc<Fn(&mut Cursive, usize)")]
-    on_select: Option<Rc<Fn(&mut Cursive, usize)>>,
+    on_select: Option<IndexCallback>,
 
     #[debug_stub(some = "Rc<Fn(&mut Cursive, usize, bool, usize)>")]
-    on_collapse: Option<Rc<Fn(&mut Cursive, usize, bool, usize)>>,
+    on_collapse: Option<CollapseCallback>,
 
     #[debug_stub = "ScrollBase"]
     scrollbase: ScrollBase,
@@ -78,6 +84,12 @@ pub struct TreeView<T: Display + Debug> {
     list: TreeList<T>,
 }
 
+impl<T: Display + Debug> Default for TreeView<T> {
+    /// Creates a new, empty `TreeView`.
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl<T: Display + Debug> TreeView<T> {
     /// Creates a new, empty `TreeView`.
     pub fn new() -> Self {

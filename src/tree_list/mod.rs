@@ -475,12 +475,12 @@ impl<T: Display + Debug> TreeList<T> {
         self.items.insert(
             item_index,
             TreeNode {
-                value: value,
+                value,
                 is_collapsed: initially_collapsed,
-                level: level,
-                children: children,
+                level,
+                children,
                 height: 1 + children,
-                is_container: is_container,
+                is_container,
                 collapsed_height: if initially_collapsed { Some(1) } else { None },
             },
         );
@@ -500,7 +500,7 @@ impl<T: Display + Debug> TreeList<T> {
 
     fn traverse_up<C: FnMut(&mut TreeNode<T>)>(&mut self, index: usize, offset: usize, mut cb: C) {
         let mut level = self.items[index].level + offset;
-        for i in 0..index + 1 {
+        for i in 0..=index {
             if self.items[index - i].level < level {
                 cb(&mut self.items[index - i]);
                 level -= 1;
@@ -532,7 +532,7 @@ impl<T: Display + Debug> TreeList<T> {
 
     fn item_parent_index(&mut self, index: usize) -> Option<usize> {
         let level = self.items[index].level;
-        for i in 0..index + 1 {
+        for i in 0..=index {
             if self.items[index - i].level < level {
                 return Some(index - i);
             }
