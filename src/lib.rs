@@ -326,7 +326,7 @@ impl<T: Display + Debug> TreeView<T> {
     /// Returns a immutable reference to the item at the given row.
     ///
     /// `None` is returned in case the specified `row` does not visually exist.
-    pub fn borrow_item(&mut self, row: usize) -> Option<&T> {
+    pub fn borrow_item(&self, row: usize) -> Option<&T> {
         let index = self.list.row_to_item_index(row);
         self.list.get(index)
     }
