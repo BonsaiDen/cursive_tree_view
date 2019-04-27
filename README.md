@@ -27,23 +27,6 @@ and this to your crate root:
 extern crate cursive_tree_view;
 ```
 
-### Different backends
-
-If you are using `cursive` with a different backend, you'll need to *forward*
-the identical features to your `cursive_tree_view` dependency:
-
-```toml
-[dependencies.cursive]
-version = "0.10"
-default-features = false
-features = ["blt-backend"]
-
-[dependencies.cursive_tree_view]
-version = "0.3"
-default-features = false
-features = ["blt-backend"]
-```
-
 ## License
 
 Licensed under either of
