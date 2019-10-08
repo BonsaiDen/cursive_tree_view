@@ -14,6 +14,7 @@ pub struct TreeNode<T: Display + Debug> {
 }
 
 impl<T: Display + Debug> TreeNode<T> {
+
     pub fn value(&self) -> &T {
         &self.value
     }
@@ -40,6 +41,14 @@ impl<T: Display + Debug> TreeNode<T> {
         } else {
             "◦"
         }
+    }
+
+    pub fn offset(&self) -> usize {
+        self.level() * 2
+    }
+
+    pub fn width(&self) -> usize {
+        format!("{}", self.value()).len()
     }
 }
 
@@ -112,6 +121,14 @@ impl<T: Display + Debug> TreeList<T> {
     pub fn clear(&mut self) {
         self.items.clear();
         self.height = 0;
+    }
+
+    pub fn first_col(&self, index: usize) -> Option<usize> {
+        self.items.get(index).and_then(|item| Some(item.offset()))
+    }
+
+    pub fn width(&self, index: usize) -> Option<usize> {
+        self.items.get(index).and_then(|item| Some(item.width()))
     }
 
     pub fn insert_item(&mut self, placement: Placement, index: usize, value: T) -> Option<usize> {

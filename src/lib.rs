@@ -84,6 +84,9 @@ pub struct TreeView<T: Display + Debug> {
     list: TreeList<T>,
 }
 
+/// One character for the symbol, and one for a space between the sybol and the item
+const SYMBOL_WIDTH: usize = 2;
+
 impl<T: Display + Debug> Default for TreeView<T> {
     /// Creates a new, empty `TreeView`.
     fn default() -> Self {
@@ -310,6 +313,22 @@ impl<T: Display + Debug> TreeView<T> {
         }
     }
 
+    /// Returns position on the x axis of the symbol (first character of an item) at the given row.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
+    pub fn first_col(&self, row: usize) -> Option<usize> {
+        let index = self.list.row_to_item_index(row);
+        self.list.first_col(index)
+    }
+
+    /// Returns total width (including the symbol) of the item at the given row.
+    ///
+    /// `None` is returned in case the specified `row` does not visually exist.
+    pub fn item_width(&self, row: usize) -> Option<usize> {
+        let index = self.list.row_to_item_index(row);
+        self.list.width(index).and_then(|width| Some(width + SYMBOL_WIDTH))
+    }
+
     /// Selects the row at the specified index.
     pub fn set_selected_row(&mut self, row: usize) {
         self.focus = row;
@@ -465,11 +484,11 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
                 ColorStyle::primary()
             };
 
-            printer.print((item.level() * 2, 0), item.symbol());
+            printer.print((item.offset(), 0), item.symbol());
 
             printer.with_color(color, |printer| {
                 printer.print(
-                    (item.level() * 2 + 2, 0),
+                    (item.offset() + SYMBOL_WIDTH, 0),
                     format!("{}", item.value()).as_str(),
                 );
             });
