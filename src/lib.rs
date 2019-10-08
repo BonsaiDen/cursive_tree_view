@@ -450,15 +450,24 @@ impl<T: Display + Debug> TreeView<T> {
     pub fn collapsed(self, row: usize, collapsed: bool) -> Self {
         self.with(|t| t.set_collapsed(row, collapsed))
     }
-}
 
-impl<T: Display + Debug> TreeView<T> {
-    fn focus_up(&mut self, n: usize) {
+    /// Select item `n` rows up from the one currently selected.
+    pub fn focus_up(&mut self, n: usize) {
         self.focus -= cmp::min(self.focus, n);
     }
 
-    fn focus_down(&mut self, n: usize) {
+    /// Select item `n` rows down from the one currently selected.
+    pub fn focus_down(&mut self, n: usize) {
         self.focus = cmp::min(self.focus + n, self.list.height() - 1);
+    }
+
+    /// Returns position of the parent of the item located in `row`.
+    ///
+    /// `None` is returned if `row` is not currenlty visible or if the item has no ancestors.
+    pub fn item_parent(&self, row: usize) -> Option<usize> {
+        let item_index = self.list.row_to_item_index(row);
+        let parent_index = self.list.item_parent_index(item_index)?;
+        Some(self.list.item_index_to_row(parent_index))
     }
 }
 
