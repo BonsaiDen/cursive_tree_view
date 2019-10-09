@@ -326,7 +326,7 @@ impl<T: Display + Debug> TreeView<T> {
     /// `None` is returned in case the specified `row` does not visually exist.
     pub fn item_width(&self, row: usize) -> Option<usize> {
         let index = self.list.row_to_item_index(row);
-        self.list.width(index).and_then(|width| Some(width + SYMBOL_WIDTH))
+        self.list.width(index).map(|width| width + SYMBOL_WIDTH)
     }
 
     /// Selects the row at the specified index.
