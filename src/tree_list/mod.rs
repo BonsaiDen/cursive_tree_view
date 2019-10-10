@@ -41,6 +41,16 @@ impl<T: Display + Debug> TreeNode<T> {
             "◦"
         }
     }
+
+    /// Returns indentation of the element in the tree
+    pub fn offset(&self) -> usize {
+        self.level() * 2
+    }
+
+    /// Returns length of the string representation of the item
+    pub fn width(&self) -> usize {
+        format!("{}", self.value()).len()
+    }
 }
 
 /// Determines how items are inserted into a [`TreeView`](struct.TreeView.html).
@@ -112,6 +122,20 @@ impl<T: Display + Debug> TreeList<T> {
     pub fn clear(&mut self) {
         self.items.clear();
         self.height = 0;
+    }
+
+    /// Returns position on the x axis of the item at `index`
+    ///
+    /// `None` is returned when no item exists at `index`.
+    pub fn first_col(&self, index: usize) -> Option<usize> {
+        self.items.get(index).map(|item| item.offset())
+    }
+
+    /// Returns width of the string representation of the item at `index`
+    ///
+    /// `None` is returned when no item exists at `index`.
+    pub fn width(&self, index: usize) -> Option<usize> {
+        self.items.get(index).map(|item| item.width())
     }
 
     pub fn insert_item(&mut self, placement: Placement, index: usize, value: T) -> Option<usize> {
