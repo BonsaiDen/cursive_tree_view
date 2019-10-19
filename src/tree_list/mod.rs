@@ -382,7 +382,7 @@ impl<T: Display + Debug> TreeList<T> {
         row
     }
 
-    /// Returns index of the parrent of the node at the input index.
+    /// Returns index of the parent of the node at the input index.
     ///
     /// `None` is returned if the node at index is a root (has no ancestors).
     pub fn item_parent_index(&self, index: usize) -> Option<usize> {
