@@ -381,6 +381,19 @@ impl<T: Display + Debug> TreeList<T> {
 
         row
     }
+
+    /// Returns index of the parent of the node at the input index.
+    ///
+    /// `None` is returned if the node at index is a root (has no ancestors).
+    pub fn item_parent_index(&self, index: usize) -> Option<usize> {
+        let level = self.items[index].level;
+        for i in 0..=index {
+            if self.items[index - i].level < level {
+                return Some(index - i);
+            }
+        }
+        None
+    }
 }
 
 impl<T: Display + Debug> TreeList<T> {
@@ -552,16 +565,6 @@ impl<T: Display + Debug> TreeList<T> {
         }
 
         children
-    }
-
-    fn item_parent_index(&mut self, index: usize) -> Option<usize> {
-        let level = self.items[index].level;
-        for i in 0..=index {
-            if self.items[index - i].level < level {
-                return Some(index - i);
-            }
-        }
-        None
     }
 }
 
