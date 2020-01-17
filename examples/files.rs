@@ -44,7 +44,7 @@ fn main() {
                             .file_name()
                             .into_string()
                             .unwrap_or_else(|_| "".to_string()),
-                        dir: Some(path.into()),
+                        dir: Some(path),
                     });
                 } else if path.is_file() {
                     entries.push(TreeEntry {
@@ -86,7 +86,7 @@ fn main() {
     tree.insert_item(
         TreeEntry {
             name: path.file_name().unwrap().to_str().unwrap().to_string(),
-            dir: Some(path.clone().into()),
+            dir: Some(path.clone()),
         },
         Placement::After,
         0,

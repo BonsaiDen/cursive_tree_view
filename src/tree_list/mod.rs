@@ -105,13 +105,11 @@ impl<T: Display + Debug> TreeList<T> {
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.items.get(index).and_then(|item| Some(&item.value))
+        self.items.get(index).map(|item| &item.value)
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.items
-            .get_mut(index)
-            .and_then(|item| Some(&mut item.value))
+        self.items.get_mut(index).map(|item| &mut item.value)
     }
 
     pub fn take_items(&mut self) -> Vec<T> {
@@ -2016,5 +2014,4 @@ mod test {
 
         assert_eq!(tree.remove(0).unwrap(), TreeItem { value: 42 });
     }
-
 }
