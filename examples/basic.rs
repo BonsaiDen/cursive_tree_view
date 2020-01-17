@@ -5,7 +5,7 @@ extern crate cursive_tree_view;
 // External Dependencies ------------------------------------------------------
 use cursive::direction::Orientation;
 use cursive::traits::*;
-use cursive::views::{BoxView, Dialog, DummyView, LinearLayout, Panel, TextView};
+use cursive::views::{Dialog, DummyView, LinearLayout, Panel, ResizedView, TextView};
 use cursive::Cursive;
 
 // Modules --------------------------------------------------------------------
@@ -36,7 +36,7 @@ fn main() {
 
     // Callbacks --------------------------------------------------------------
     tree.set_on_submit(|siv: &mut Cursive, row| {
-        let value = siv.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        let value = siv.call_on_name("tree", move |tree: &mut TreeView<String>| {
             tree.borrow_item(row).unwrap().to_string()
         });
 
@@ -65,7 +65,7 @@ fn main() {
 
     // Controls ---------------------------------------------------------------
     fn insert_row(s: &mut Cursive, text: &str, placement: Placement) {
-        let row = s.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        let row = s.call_on_name("tree", move |tree: &mut TreeView<String>| {
             let row = tree.row().unwrap_or(0);
             tree.insert_item(text.to_string(), placement, row)
                 .unwrap_or(0)
@@ -80,7 +80,7 @@ fn main() {
     siv.add_global_callback('l', |s| insert_row(s, "LastChild", Placement::LastChild));
 
     siv.add_global_callback('r', |s| {
-        s.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        s.call_on_name("tree", move |tree: &mut TreeView<String>| {
             if let Some(row) = tree.row() {
                 tree.remove_item(row);
             }
@@ -88,7 +88,7 @@ fn main() {
     });
 
     siv.add_global_callback('h', |s| {
-        s.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        s.call_on_name("tree", move |tree: &mut TreeView<String>| {
             if let Some(row) = tree.row() {
                 tree.remove_children(row);
             }
@@ -96,7 +96,7 @@ fn main() {
     });
 
     siv.add_global_callback('e', |s| {
-        s.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        s.call_on_name("tree", move |tree: &mut TreeView<String>| {
             if let Some(row) = tree.row() {
                 tree.extract_item(row);
             }
@@ -104,7 +104,7 @@ fn main() {
     });
 
     siv.add_global_callback('c', |s| {
-        s.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        s.call_on_name("tree", move |tree: &mut TreeView<String>| {
             tree.clear();
         });
     });
@@ -132,24 +132,24 @@ c - Clear all items.
         .min_height(13),
     );
 
-    v_split.add_child(BoxView::with_full_height(DummyView));
-    v_split.add_child(TextView::new("Last action: None").with_id("status"));
+    v_split.add_child(ResizedView::with_full_height(DummyView));
+    v_split.add_child(TextView::new("Last action: None").with_name("status"));
 
     let mut h_split = LinearLayout::new(Orientation::Horizontal);
     h_split.add_child(v_split);
-    h_split.add_child(BoxView::with_fixed_size((4, 0), DummyView));
-    h_split.add_child(Panel::new(tree.with_id("tree")));
+    h_split.add_child(ResizedView::with_fixed_size((4, 0), DummyView));
+    h_split.add_child(Panel::new(tree.with_name("tree")));
 
     siv.add_layer(Dialog::around(h_split).title("Tree View").max_height(20));
 
     fn set_status(siv: &mut Cursive, row: usize, text: &str) {
-        let value = siv.call_on_id("tree", move |tree: &mut TreeView<String>| {
+        let value = siv.call_on_name("tree", move |tree: &mut TreeView<String>| {
             tree.borrow_item(row)
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| "".to_string())
         });
 
-        siv.call_on_id("status", move |view: &mut TextView| {
+        siv.call_on_name("status", move |view: &mut TextView| {
             view.set_content(format!(
                 "Last action: {} row #{} \"{}\"",
                 text,

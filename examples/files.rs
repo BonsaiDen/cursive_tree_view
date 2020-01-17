@@ -97,7 +97,7 @@ fn main() {
     // Lazily insert directory listings for sub nodes
     tree.set_on_collapse(|siv: &mut Cursive, row, is_collapsed, children| {
         if !is_collapsed && children == 0 {
-            siv.call_on_id("tree", move |tree: &mut TreeView<TreeEntry>| {
+            siv.call_on_name("tree", move |tree: &mut TreeView<TreeEntry>| {
                 if let Some(dir) = tree.borrow_item(row).unwrap().dir.clone() {
                     expand_tree(tree, row, &dir);
                 }
@@ -107,7 +107,7 @@ fn main() {
 
     // Setup Cursive
     let mut siv = Cursive::default();
-    siv.add_layer(Dialog::around(tree.with_id("tree")).title("File View"));
+    siv.add_layer(Dialog::around(tree.with_name("tree")).title("File View"));
 
     siv.run();
 }
