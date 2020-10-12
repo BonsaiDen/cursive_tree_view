@@ -9,7 +9,7 @@
 )]
 
 // Crate Dependencies ---------------------------------------------------------
-extern crate cursive;
+extern crate cursive_core;
 #[macro_use]
 extern crate debug_stub_derive;
 
@@ -20,13 +20,13 @@ use std::fmt::{Debug, Display};
 use std::rc::Rc;
 
 // External Dependencies ------------------------------------------------------
-use cursive::direction::Direction;
-use cursive::event::{Callback, Event, EventResult, Key};
-use cursive::theme::ColorStyle;
-use cursive::vec::Vec2;
-use cursive::view::{ScrollBase, View};
-use cursive::With;
-use cursive::{Cursive, Printer};
+use cursive_core::direction::Direction;
+use cursive_core::event::{Callback, Event, EventResult, Key};
+use cursive_core::theme::ColorStyle;
+use cursive_core::vec::Vec2;
+use cursive_core::view::{ScrollBase, View};
+use cursive_core::With;
+use cursive_core::{Cursive, Printer};
 
 // Internal Dependencies ------------------------------------------------------
 mod tree_list;
