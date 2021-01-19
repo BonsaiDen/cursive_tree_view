@@ -106,7 +106,7 @@ fn main() {
     });
 
     // Setup Cursive
-    let mut siv = Cursive::default();
+    let mut siv = cursive::default();
     siv.add_layer(Dialog::around(tree.with_name("tree")).title("File View"));
 
     siv.run();
