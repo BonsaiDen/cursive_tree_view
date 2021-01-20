@@ -13,7 +13,7 @@ use cursive_tree_view::{Placement, TreeView};
 
 // Example --------------------------------------------------------------------
 fn main() {
-    let mut siv = Cursive::default();
+    let mut siv = cursive::default();
 
     // Tree -------------------------------------------------------------------
     let mut tree = TreeView::new();

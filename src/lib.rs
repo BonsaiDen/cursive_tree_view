@@ -9,7 +9,7 @@
 )]
 
 // Crate Dependencies ---------------------------------------------------------
-extern crate cursive;
+extern crate cursive_core as cursive;
 #[macro_use]
 extern crate debug_stub_derive;
 
