@@ -138,7 +138,7 @@ c - Clear all items.
     let mut h_split = LinearLayout::new(Orientation::Horizontal);
     h_split.add_child(v_split);
     h_split.add_child(ResizedView::with_fixed_size((4, 0), DummyView));
-    h_split.add_child(Panel::new(tree.with_name("tree")));
+    h_split.add_child(Panel::new(tree.with_name("tree").scrollable()));
 
     siv.add_layer(Dialog::around(h_split).title("Tree View").max_height(20));
 

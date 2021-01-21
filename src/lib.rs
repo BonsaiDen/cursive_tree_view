@@ -24,9 +24,9 @@ use cursive::direction::Direction;
 use cursive::event::{Callback, Event, EventResult, Key};
 use cursive::theme::ColorStyle;
 use cursive::vec::Vec2;
-use cursive::view::{ScrollBase, View};
-use cursive::With;
+use cursive::view::View;
 use cursive::{Cursive, Printer};
+use cursive::{Rect, With};
 
 // Internal Dependencies ------------------------------------------------------
 mod tree_list;
@@ -77,8 +77,6 @@ pub struct TreeView<T: Display + Debug> {
     #[debug_stub(some = "Rc<Fn(&mut Cursive, usize, bool, usize)>")]
     on_collapse: Option<CollapseCallback>,
 
-    #[debug_stub = "ScrollBase"]
-    scrollbase: ScrollBase,
     last_size: Vec2,
     focus: usize,
     list: TreeList<T>,
@@ -102,7 +100,6 @@ impl<T: Display + Debug> TreeView<T> {
             on_select: None,
             on_collapse: None,
 
-            scrollbase: ScrollBase::new(),
             last_size: (0, 0).into(),
             focus: 0,
             list: TreeList::new(),
@@ -332,7 +329,6 @@ impl<T: Display + Debug> TreeView<T> {
     /// Selects the row at the specified index.
     pub fn set_selected_row(&mut self, row: usize) {
         self.focus = row;
-        self.scrollbase.scroll_to(row);
     }
 
     /// Selects the row at the specified index.
@@ -469,15 +465,18 @@ impl<T: Display + Debug> TreeView<T> {
         let parent_index = self.list.item_parent_index(item_index)?;
         Some(self.list.item_index_to_row(parent_index))
     }
+
+    fn draw_content(&self, printer: &Printer) {}
 }
 
 impl<T: Display + Debug + 'static> View for TreeView<T> {
     fn draw(&self, printer: &Printer) {
-        let index = self.list.row_to_item_index(self.scrollbase.start_line);
+        let index = self.list.row_to_item_index(0);
         let items = self.list.items();
         let list_index = Rc::new(RefCell::new(index));
 
-        self.scrollbase.draw(printer, |printer, i| {
+        for i in 0..self.list.height() {
+            let printer = printer.offset((0, i));
             let mut index = list_index.borrow_mut();
 
             let item = &items[*index];
@@ -501,11 +500,11 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
                     format!("{}", item.value()).as_str(),
                 );
             });
-        });
+        }
     }
 
-    fn required_size(&mut self, req: Vec2) -> Vec2 {
-        let width: usize = self
+    fn required_size(&mut self, _req: Vec2) -> Vec2 {
+        let w: usize = self
             .list
             .items()
             .iter()
@@ -514,15 +513,11 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
             .unwrap_or(0);
 
         let h = self.list.height();
-        let w = if req.y < h { width + 2 } else { width };
 
         (w, h).into()
     }
 
     fn layout(&mut self, size: Vec2) {
-        let height = self.list.height();
-        self.scrollbase.set_heights(size.y, height);
-        self.scrollbase.scroll_to(self.focus);
         self.last_size = size;
     }
 
@@ -582,7 +577,6 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
         }
 
         let focus = self.focus;
-        self.scrollbase.scroll_to(focus);
 
         if !self.is_empty() && last_focus != focus {
             let row = self.focus;
@@ -594,5 +588,9 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
         } else {
             EventResult::Ignored
         }
+    }
+
+    fn important_area(&self, size: Vec2) -> Rect {
+        Rect::from_size((0, self.focus), (size.x, 1))
     }
 }
