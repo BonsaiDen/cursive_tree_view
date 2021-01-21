@@ -1,6 +1,6 @@
 // Crate Dependencies ---------------------------------------------------------
-extern crate cursive;
-extern crate cursive_tree_view;
+use cursive;
+
 
 // External Dependencies ------------------------------------------------------
 use cursive::direction::Orientation;

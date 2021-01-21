@@ -1,6 +1,6 @@
 // Crate Dependencies ---------------------------------------------------------
-extern crate cursive;
-extern crate cursive_tree_view;
+use cursive;
+
 
 // STD Dependencies -----------------------------------------------------------
 use std::cmp::Ordering;
@@ -27,7 +27,7 @@ fn main() {
     }
 
     impl fmt::Display for TreeEntry {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "{}", self.name)
         }
     }

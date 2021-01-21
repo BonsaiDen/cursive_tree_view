@@ -492,7 +492,7 @@ impl<T: Display + Debug> TreeView<T> {
 }
 
 impl<T: Display + Debug + 'static> View for TreeView<T> {
-    fn draw(&self, printer: &Printer) {
+    fn draw(&self, printer: &Printer<'_, '_>) {
         let index = self.list.row_to_item_index(0);
         let items = self.list.items();
         let list_index = Rc::new(RefCell::new(index));
