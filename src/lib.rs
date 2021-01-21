@@ -21,7 +21,7 @@ use std::rc::Rc;
 
 // External Dependencies ------------------------------------------------------
 use cursive::direction::Direction;
-use cursive::event::{Callback, Event, EventResult, Key};
+use cursive::event::{Callback, Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::theme::ColorStyle;
 use cursive::vec::Vec2;
 use cursive::view::View;
@@ -466,7 +466,29 @@ impl<T: Display + Debug> TreeView<T> {
         Some(self.list.item_index_to_row(parent_index))
     }
 
-    fn draw_content(&self, printer: &Printer) {}
+    fn submit(&mut self) -> EventResult {
+        let row = self.focus;
+        let index = self.list.row_to_item_index(row);
+
+        if self.list.is_container_item(index) {
+            let collapsed = self.list.get_collapsed(index);
+            let children = self.list.get_children(index);
+
+            self.list.set_collapsed(index, !collapsed);
+
+            if self.on_collapse.is_some() {
+                let cb = self.on_collapse.clone().unwrap();
+                return EventResult::Consumed(Some(Callback::from_fn(move |s| {
+                    cb(s, row, !collapsed, children)
+                })));
+            }
+        } else if self.on_submit.is_some() {
+            let cb = self.on_submit.clone().unwrap();
+            return EventResult::Consumed(Some(Callback::from_fn(move |s| cb(s, row))));
+        }
+
+        EventResult::Ignored
+    }
 }
 
 impl<T: Display + Debug + 'static> View for TreeView<T> {
@@ -552,24 +574,19 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
             }
             Event::Key(Key::Enter) => {
                 if !self.is_empty() {
-                    let row = self.focus;
-                    let index = self.list.row_to_item_index(row);
-
-                    if self.list.is_container_item(index) {
-                        let collapsed = self.list.get_collapsed(index);
-                        let children = self.list.get_children(index);
-
-                        self.list.set_collapsed(index, !collapsed);
-
-                        if self.on_collapse.is_some() {
-                            let cb = self.on_collapse.clone().unwrap();
-                            return EventResult::Consumed(Some(Callback::from_fn(move |s| {
-                                cb(s, row, !collapsed, children)
-                            })));
-                        }
-                    } else if self.on_submit.is_some() {
-                        let cb = self.on_submit.clone().unwrap();
-                        return EventResult::Consumed(Some(Callback::from_fn(move |s| cb(s, row))));
+                    return self.submit();
+                }
+            }
+            Event::Mouse {
+                position,
+                offset,
+                event: MouseEvent::Press(btn),
+            } => {
+                if let Some(position) = position.checked_sub(offset) {
+                    match position.y {
+                        y if y == self.focus && btn == MouseButton::Left => return self.submit(),
+                        y if y < self.list.height() => self.focus = position.y,
+                        _ => return EventResult::Ignored,
                     }
                 }
             }
