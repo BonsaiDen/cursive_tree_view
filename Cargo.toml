@@ -1,7 +1,7 @@
 [package]
 name = "cursive_tree_view"
 edition = "2018"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Ivo Wetzel <ivo.wetzel@googlemail.com>", "Alexandre Bury <alexandre.bury@gmail.com>"]
 description = "A tree view implementation for cursive."
 repository = "https://github.com/BonsaiDen/cursive_tree_view.git"
