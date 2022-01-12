@@ -24,7 +24,7 @@ use cursive::direction::Direction;
 use cursive::event::{Callback, Event, EventResult, Key, MouseButton, MouseEvent};
 use cursive::theme::ColorStyle;
 use cursive::vec::Vec2;
-use cursive::view::View;
+use cursive::view::{CannotFocus, View};
 use cursive::{Cursive, Printer};
 use cursive::{Rect, With};
 
@@ -543,8 +543,10 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
         self.last_size = size;
     }
 
-    fn take_focus(&mut self, _: Direction) -> bool {
-        self.enabled && !self.is_empty()
+    fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus> {
+        (self.enabled && !self.is_empty())
+            .then(EventResult::consumed)
+            .ok_or(CannotFocus)
     }
 
     fn on_event(&mut self, event: Event) -> EventResult {
