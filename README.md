@@ -18,7 +18,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cursive_tree_view = "0.7"
+cursive_tree_view = "0.8"
 ```
 
 and this to your crate root:
