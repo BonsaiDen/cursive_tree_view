@@ -394,7 +394,7 @@ impl<T: Display + Debug> TreeView<T> {
     pub fn remove_item(&mut self, row: usize) -> Option<Vec<T>> {
         let index = self.list.row_to_item_index(row);
         let removed = self.list.remove_with_children(index);
-        self.focus = cmp::min(self.focus, self.list.height() - 1);
+        self.focus = cmp::min(self.focus, cmp::max(1, self.list.height()) - 1);
         removed
     }
 
@@ -406,7 +406,7 @@ impl<T: Display + Debug> TreeView<T> {
     pub fn remove_children(&mut self, row: usize) -> Option<Vec<T>> {
         let index = self.list.row_to_item_index(row);
         let removed = self.list.remove_children(index);
-        self.focus = cmp::min(self.focus, self.list.height() - 1);
+        self.focus = cmp::min(self.focus, cmp::max(1, self.list.height()) - 1);
         removed
     }
 
@@ -418,7 +418,7 @@ impl<T: Display + Debug> TreeView<T> {
     pub fn extract_item(&mut self, row: usize) -> Option<T> {
         let index = self.list.row_to_item_index(row);
         let removed = self.list.remove(index);
-        self.focus = cmp::min(self.focus, self.list.height() - 1);
+        self.focus = cmp::min(self.focus, cmp::max(1, self.list.height()) - 1);
         removed
     }
 
@@ -454,7 +454,7 @@ impl<T: Display + Debug> TreeView<T> {
 
     /// Select item `n` rows down from the one currently selected.
     pub fn focus_down(&mut self, n: usize) {
-        self.focus = cmp::min(self.focus + n, self.list.height() - 1);
+        self.focus = cmp::min(self.focus + n, cmp::max(1, self.list.height()) - 1);
     }
 
     /// Returns position of the parent of the item located in `row`.
@@ -572,7 +572,7 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
                 self.focus = 0;
             }
             Event::Key(Key::End) => {
-                self.focus = self.list.height() - 1;
+                self.focus = cmp::max(1, self.list.height()) - 1;
             }
             Event::Key(Key::Enter) => {
                 if !self.is_empty() {
@@ -611,5 +611,88 @@ impl<T: Display + Debug + 'static> View for TreeView<T> {
 
     fn important_area(&self, size: Vec2) -> Rect {
         Rect::from_size((0, self.focus), (size.x, 1))
+    }
+}
+
+// Tests ----------------------------------------------------------------------
+#[cfg(test)]
+mod test {
+    use crate::Placement;
+    use cursive::event::{Event, Key};
+    use crate::cursive::View;
+
+    #[test]
+    fn test_remove_last_item() {
+        use super::TreeView;
+
+        let mut tree = TreeView::<String>::new();
+        tree.insert_item("1".to_string(), Placement::LastChild, 0);
+
+        assert_eq!(tree.len(), 1);
+
+        assert_eq!(
+            tree.remove_item(0),
+            Some(vec!["1".to_string()])
+        );
+
+        assert_eq!(tree.len(), 0);
+    }
+
+    #[test]
+    fn test_remove_last_children() {
+        use super::TreeView;
+
+        let mut tree = TreeView::<String>::new();
+
+        assert_eq!(tree.len(), 0);
+
+        assert_eq!(
+            tree.remove_children(0),
+            None
+        );
+
+        assert_eq!(tree.len(), 0);
+    }
+
+    #[test]
+    fn test_extract_last_item() {
+        use super::TreeView;
+
+        let mut tree = TreeView::<String>::new();
+
+        assert_eq!(tree.len(), 0);
+
+        assert_eq!(
+            tree.extract_item(0),
+            None
+        );
+
+        assert_eq!(tree.len(), 0);
+    }
+
+    #[test]
+    fn test_focus_down_empty_list() {
+        use super::TreeView;
+
+        let mut tree = TreeView::<String>::new();
+
+        assert_eq!(tree.len(), 0);
+
+        tree.focus_down(0);
+
+        assert_eq!(tree.len(), 0);
+    }
+
+    #[test]
+    fn test_on_event_empty_list() {
+        use super::TreeView;
+
+        let mut tree = TreeView::<String>::new();
+
+        assert_eq!(tree.len(), 0);
+
+        tree.on_event(Event::Key(Key::End));
+
+        assert_eq!(tree.len(), 0);
     }
 }
