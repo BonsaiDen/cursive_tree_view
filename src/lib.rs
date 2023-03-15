@@ -440,6 +440,12 @@ impl<T: Display + Debug> TreeView<T> {
         self.list.set_collapsed(index, collapsed);
     }
 
+    /// Returns true if the row is collapsed, otherwise returns false
+    pub fn is_collapsed(&mut self, row: usize) -> bool {
+        let index = self.list.row_to_item_index(row);
+        self.list.get_collapsed(index)
+    }
+
     /// Collapses or expands the children of the given `row`.
     ///
     /// Chained variant.
