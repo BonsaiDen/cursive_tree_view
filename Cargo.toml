@@ -12,7 +12,7 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 debug_stub_derive = "0.3.0"
-cursive_core = "0.3"
+cursive_core = "0.4"
 
 [dev-dependencies]
-cursive = "0.17"
+cursive = "0.21"

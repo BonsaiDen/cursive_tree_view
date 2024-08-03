@@ -14,10 +14,9 @@ extern crate cursive_core as cursive;
 extern crate debug_stub_derive;
 
 // STD Dependencies -----------------------------------------------------------
-use std::cell::RefCell;
 use std::cmp;
 use std::fmt::{Debug, Display};
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 // External Dependencies ------------------------------------------------------
 use cursive::direction::Direction;
@@ -34,10 +33,10 @@ pub use tree_list::Placement;
 use tree_list::TreeList;
 
 /// Callback taking an item index as input.
-type IndexCallback = Rc<dyn Fn(&mut Cursive, usize)>;
+type IndexCallback = Arc<dyn Fn(&mut Cursive, usize) + Send + Sync>;
 
 /// Callback taking as input the row ID, the collapsed state, and the child ID.
-type CollapseCallback = Rc<dyn Fn(&mut Cursive, usize, bool, usize)>;
+type CollapseCallback = Arc<dyn Fn(&mut Cursive, usize, bool, usize) + Send + Sync>;
 
 /// A low level tree view.
 ///
@@ -68,13 +67,13 @@ type CollapseCallback = Rc<dyn Fn(&mut Cursive, usize, bool, usize)>;
 pub struct TreeView<T: Display + Debug> {
     enabled: bool,
 
-    #[debug_stub(some = "Rc<Fn(&mut Cursive, usize)")]
+    #[debug_stub(some = "Arc<Fn(&mut Cursive, usize)")]
     on_submit: Option<IndexCallback>,
 
-    #[debug_stub(some = "Rc<Fn(&mut Cursive, usize)")]
+    #[debug_stub(some = "Arc<Fn(&mut Cursive, usize)")]
     on_select: Option<IndexCallback>,
 
-    #[debug_stub(some = "Rc<Fn(&mut Cursive, usize, bool, usize)>")]
+    #[debug_stub(some = "Arc<Fn(&mut Cursive, usize, bool, usize)>")]
     on_collapse: Option<CollapseCallback>,
 
     last_size: Vec2,
@@ -85,13 +84,13 @@ pub struct TreeView<T: Display + Debug> {
 /// One character for the symbol, and one for a space between the sybol and the item
 const SYMBOL_WIDTH: usize = 2;
 
-impl<T: Display + Debug> Default for TreeView<T> {
+impl<T: Display + Debug + Send + Sync> Default for TreeView<T> {
     /// Creates a new, empty `TreeView`.
     fn default() -> Self {
         Self::new()
     }
 }
-impl<T: Display + Debug> TreeView<T> {
+impl<T: Display + Debug + Send + Sync> TreeView<T> {
     /// Creates a new, empty `TreeView`.
     pub fn new() -> Self {
         Self {
@@ -147,9 +146,9 @@ impl<T: Display + Debug> TreeView<T> {
     /// ```
     pub fn set_on_submit<F>(&mut self, cb: F)
     where
-        F: Fn(&mut Cursive, usize) + 'static,
+        F: Fn(&mut Cursive, usize) + Send + Sync + 'static,
     {
-        self.on_submit = Some(Rc::new(move |s, row| cb(s, row)));
+        self.on_submit = Some(Arc::new(move |s, row| cb(s, row)));
     }
 
     /// Sets a callback to be used when `<Enter>` is pressed while an item
@@ -173,7 +172,7 @@ impl<T: Display + Debug> TreeView<T> {
     /// ```
     pub fn on_submit<F>(self, cb: F) -> Self
     where
-        F: Fn(&mut Cursive, usize) + 'static,
+        F: Fn(&mut Cursive, usize) + Send + Sync + 'static,
     {
         self.with(|t| t.set_on_submit(cb))
     }
@@ -196,9 +195,9 @@ impl<T: Display + Debug> TreeView<T> {
     /// ```
     pub fn set_on_select<F>(&mut self, cb: F)
     where
-        F: Fn(&mut Cursive, usize) + 'static,
+        F: Fn(&mut Cursive, usize) + Send + Sync + 'static,
     {
-        self.on_select = Some(Rc::new(move |s, row| cb(s, row)));
+        self.on_select = Some(Arc::new(move |s, row| cb(s, row)));
     }
 
     /// Sets a callback to be used when an item is selected.
@@ -221,7 +220,7 @@ impl<T: Display + Debug> TreeView<T> {
     /// ```
     pub fn on_select<F>(self, cb: F) -> Self
     where
-        F: Fn(&mut Cursive, usize) + 'static,
+        F: Fn(&mut Cursive, usize) + Send + Sync + 'static,
     {
         self.with(|t| t.set_on_select(cb))
     }
@@ -244,9 +243,9 @@ impl<T: Display + Debug> TreeView<T> {
     /// ```
     pub fn set_on_collapse<F>(&mut self, cb: F)
     where
-        F: Fn(&mut Cursive, usize, bool, usize) + 'static,
+        F: Fn(&mut Cursive, usize, bool, usize) + Send + Sync + 'static,
     {
-        self.on_collapse = Some(Rc::new(move |s, row, collapsed, children| {
+        self.on_collapse = Some(Arc::new(move |s, row, collapsed, children| {
             cb(s, row, collapsed, children)
         }));
     }
@@ -271,7 +270,7 @@ impl<T: Display + Debug> TreeView<T> {
     /// ```
     pub fn on_collapse<F>(self, cb: F) -> Self
     where
-        F: Fn(&mut Cursive, usize, bool, usize) + 'static,
+        F: Fn(&mut Cursive, usize, bool, usize) + Send + Sync + 'static,
     {
         self.with(|t| t.set_on_collapse(cb))
     }
@@ -491,15 +490,15 @@ impl<T: Display + Debug> TreeView<T> {
     }
 }
 
-impl<T: Display + Debug + 'static> View for TreeView<T> {
+impl<T: Display + Send + Sync + Debug + 'static> View for TreeView<T> {
     fn draw(&self, printer: &Printer<'_, '_>) {
         let index = self.list.row_to_item_index(0);
         let items = self.list.items();
-        let list_index = Rc::new(RefCell::new(index));
+        let list_index = Arc::new(Mutex::new(index));
 
         for i in 0..self.list.height() {
             let printer = printer.offset((0, i));
-            let mut index = list_index.borrow_mut();
+            let mut index = list_index.lock().unwrap();
 
             let item = &items[*index];
             *index += item.len();
