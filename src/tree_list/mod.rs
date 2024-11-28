@@ -181,13 +181,15 @@ impl<T: Display + Debug> TreeList<T> {
 
     pub fn remove_children(&mut self, index: usize) -> Option<Vec<T>> {
         if index < self.len() {
-            let (item_height, item_children, was_collapsed) = {
-                let item = &self.items[index];
-                (item.height - 1, item.children, item.is_collapsed)
-            };
+            let was_collapsed = self.items[index].is_collapsed;
 
             // Uncollapse to avoid additional height calculation
             self.set_collapsed(index, false);
+
+            let (item_height, item_children) = {
+                let item = &self.items[index];
+                (item.height - 1, item.children)
+            };
 
             // Reduce height and children of all parents
             self.traverse_up(index, 1, |item| {
@@ -1659,6 +1661,55 @@ mod test {
 
         assert_eq!(tree.len(), 4);
         assert_eq!(tree.height(), 4);
+    }
+
+    // Tests for the issue outlined in #27
+    #[test]
+    fn test_use_after_remove_children() {
+        use super::{Placement, TreeList};
+
+        let mut tree = TreeList::new();
+        tree.insert_item(Placement::LastChild, 0, "A");
+            tree.insert_item(Placement::LastChild, 0, "B");
+                tree.insert_item(Placement::LastChild, 1, "C");
+                    tree.insert_item(Placement::LastChild, 2, "D");
+                    tree.insert_item(Placement::LastChild, 2, "E");
+
+        assert_eq!(5, tree.height);
+
+        tree.set_collapsed(2, true);
+        assert_eq!(3, tree.height);
+
+        tree.set_collapsed(1, true);
+        assert_eq!(2, tree.height);
+
+        tree.set_collapsed(0, true);
+        assert_eq!(tree.height, 1);
+
+        tree.set_collapsed(0, false);
+        tree.set_collapsed(1, false);
+
+        assert_eq!(3, tree.height);
+
+        let mut removed = tree.remove_children(2).unwrap().into_iter().collect::<Vec<_>>();
+
+        assert_eq!(2, removed.len());
+        assert_eq!("D", removed[0]);
+        assert_eq!("E", removed[1]);
+        assert_eq!(3, tree.height);
+
+        removed.push("F");
+
+        tree.insert_item(Placement::LastChild, 2, removed[0]);
+        tree.insert_item(Placement::LastChild, 2, removed[1]);
+        tree.insert_item(Placement::LastChild, 2, removed[2]);
+
+        assert_eq!(3, tree.height);
+
+        tree.set_collapsed(2, false);
+
+        assert_eq!(6, tree.height);
+
     }
 
     #[test]
